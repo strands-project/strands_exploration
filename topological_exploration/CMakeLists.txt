@@ -7,6 +7,8 @@ add_service_files(
   FILES
   AddView.srv
   Visualize.srv
+  SaveGrid.srv
+  LoadGrid.srv
 )
 
 ## Generate messages in the 'msg' folder
