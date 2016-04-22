@@ -1,0 +1,5 @@
+float64 stamp
+string waypoint
+---
+bool  	result
+float64   information

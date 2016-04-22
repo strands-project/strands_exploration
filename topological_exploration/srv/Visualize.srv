@@ -1,0 +1,11 @@
+string waypoint
+uint64 stamp
+float64 minProbability
+float64 maxProbability
+float64 period
+uint64 type
+string name
+bool set_color
+std_msgs/ColorRGBA color
+---
+int64 numcells
