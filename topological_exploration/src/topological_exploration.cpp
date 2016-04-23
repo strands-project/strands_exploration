@@ -89,6 +89,7 @@ ros::ServiceClient taskCreator;
 ros::ServiceClient taskCancel;
 ros::Publisher  grid_markers_pub;
 ros::Publisher information_pub;
+ros::Subscriber ptu_state_sub;
 
 const mongo::BSONObj EMPTY_BSON_OBJ;
 
@@ -161,17 +162,17 @@ void batteryCallBack(const scitos_msgs::BatteryState &msg)
 
 void  ptuLogCallback(const std_msgs::String::ConstPtr& msg)
 {
-    ROS_INFO("PTU log: %s", msg->data);
+    ROS_INFO("PTU log: %s", msg->data.c_str());
 
 }
 
-void  ptuFeedbackCallback(const scitos_ptu::PanTiltFeedback::ConstPtr &msg)
-{
+//void  ptuFeedbackCallback(const scitos_ptu::PanTiltFeedback::ConstPtr &msg)
+//{
 
-    msg->feedback_ptu_pose
-    ROS_INFO("PTU log: %s", msg->data);
+//    msg->feedback_ptu_pose
+//    //ROS_INFO("PTU log: %s", msg->data);
 
-}
+//}
 
 /*get robot pose*/
 void poseCallback(const geometry_msgs::Pose::ConstPtr& msg)
@@ -333,15 +334,15 @@ void retrieveGrids(uint32_t lastTime)
     char testTime[1000];
     vector< boost::shared_ptr<topological_exploration::FremenGrid> > results;
     messageStore->query<topological_exploration::FremenGrid>(results);
-    BOOST_FOREACH( boost::shared_ptr<topological_exploration::FremenGrid> p,  results)
-    {
-        time_t timeInfo = p->time;
-        strftime(testTime, sizeof(testTime), "%Y-%m-%d_%H:%M:%S",localtime(&timeInfo));
-        ROS_INFO("There were %d interaction at %s at waypoint %s.",p->number,testTime,p->waypoint.c_str());
-        if (lastTime > p->time){
-            if (p->number>1) addResult(p->waypoint.c_str(),1,p->time); else addResult(p->waypoint.c_str(),0,p->time);
-        }
-    }
+//    BOOST_FOREACH( boost::shared_ptr<topological_exploration::FremenGrid> p,  results)
+//    {
+//        time_t timeInfo = p->time;
+//        strftime(testTime, sizeof(testTime), "%Y-%m-%d_%H:%M:%S",localtime(&timeInfo));
+//        ROS_INFO("There were %d interaction at %s at waypoint %s.",p->number,testTime,p->waypoint.c_str());
+//        if (lastTime > p->time){
+//            if (p->number>1) addResult(p->waypoint.c_str(),1,p->time); else addResult(p->waypoint.c_str(),0,p->time);
+//        }
+//    }
 }
 
 /*generates a schedule and saves it in a file*/
@@ -859,7 +860,7 @@ int main(int argc,char* argv[])
     //to get PTU state
     ptu_state_sub  = n.subscribe("/ptu/log", 1, ptuLogCallback);
     //to get PTU feedback
-    ptu_feed_sub  = n.subscribe("/SetPTUState/feedback", 1, ptuFeedbackCallback);
+//    ptu_feed_sub  = n.subscribe("/SetPTUState/feedback", 1, ptuFeedbackCallback);
 
 
 

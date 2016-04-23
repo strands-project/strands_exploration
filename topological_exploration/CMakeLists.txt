@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(topological_exploration)
 
-find_package(catkin REQUIRED COMPONENTS  mongodb_store message_generation roscpp strands_executive_msgs std_msgs std_srvs strands_navigation_msgs mongodb_store_msgs geometry_msgs dynamic_reconfigure exploration_task  image_transport tf scitos_apps) 
+find_package(catkin REQUIRED COMPONENTS  mongodb_store message_generation roscpp strands_executive_msgs std_msgs std_srvs strands_navigation_msgs mongodb_store_msgs geometry_msgs dynamic_reconfigure exploration_task  image_transport tf scitos_ptu) 
 
 add_service_files(
   FILES
@@ -30,7 +30,7 @@ generate_dynamic_reconfigure_options(
 
 set ( CMAKE_CXX_FLAGS "-Ofast -march=native -mno-avx -ggdb")
 
-catkin_package(CATKIN_DEPENDS roscpp strands_executive_msgs message_generation std_msgs std_srvs strands_navigation_msgs mongodb_store_msgs geometry_msgs std_msgs mongodb_store exploration_task scitos_apps)
+catkin_package(CATKIN_DEPENDS roscpp strands_executive_msgs message_generation std_msgs std_srvs strands_navigation_msgs mongodb_store_msgs geometry_msgs std_msgs mongodb_store exploration_task scitos_ptu)
 
 include_directories(${catkin_INCLUDE_DIRS}) 
 
