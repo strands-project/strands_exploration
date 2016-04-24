@@ -167,7 +167,7 @@ void  ptuLogCallback(const std_msgs::String::ConstPtr& msg)
 {
     ROS_INFO("PTU log: %s", msg->data.c_str());
 
-    if(msg->data.compare("PTU log: start_sweep") == 0)
+    if(msg->data.compare("PTU log: start_position") == 0)
     {
 
         //get grid index according to the waypoint
