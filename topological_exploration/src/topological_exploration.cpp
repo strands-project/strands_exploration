@@ -723,8 +723,6 @@ bool addDepth(topological_exploration::AddView::Request  &req, topological_explo
 
 void imageCallback(const sensor_msgs::ImageConstPtr& msg)
 {
-    ROS_INFO("Integrate depth image...");
-
     //stores the depth image for easier manipultation
     float depth = msg->data[640*480+640]+256*msg->data[640*480+640+1];
 
