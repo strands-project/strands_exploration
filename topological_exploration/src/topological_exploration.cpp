@@ -123,7 +123,7 @@ float info;
 
 //Ray casting parameters
 int integrateMeasurements = 0;
-int maxMeasurements = 2;//15;
+int maxMeasurements = 1;//15;
 int measurements = maxMeasurements;
 float *dept;
 bool first_grid = true;
@@ -167,7 +167,7 @@ void  ptuLogCallback(const std_msgs::String::ConstPtr& msg)
 {
     ROS_INFO("PTU log: %s", msg->data.c_str());
 
-    if(msg->data.compare("start_position") == 0)
+    if(msg->data.compare("PTU log: start_sweep") == 0)
     {
 
         //get grid index according to the waypoint
@@ -723,6 +723,8 @@ bool addDepth(topological_exploration::AddView::Request  &req, topological_explo
 
 void imageCallback(const sensor_msgs::ImageConstPtr& msg)
 {
+    ROS_INFO("Integrate depth image...");
+
     //stores the depth image for easier manipultation
     float depth = msg->data[640*480+640]+256*msg->data[640*480+640+1];
 
