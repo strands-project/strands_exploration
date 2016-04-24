@@ -530,7 +530,7 @@ int createTask(int slot)
     //    if (taskCreator.call(srv))
     //    {
     mongodb_store_msgs::StringPair taskArg;
-    taskArg.second = "complete";
+    taskArg.second = "short";
     strands_executive_msgs::Task task;//=srv.response.task;
     task.action = "do_sweep";
     task.start_node_id = fremengridSet.fremengrid[nodes[slot]]->id;
