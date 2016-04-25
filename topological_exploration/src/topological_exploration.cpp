@@ -39,6 +39,7 @@
 #include "topological_exploration/Visualize.h"
 #include <std_msgs/Float64.h>
 #include <scitos_ptu/PanTiltActionFeedback.h>
+#include <mongodb_store_msgs/StringPair.h>
 
 
 
@@ -83,12 +84,15 @@ ros::Subscriber batterySub;
 ros::Subscriber infoTaskSub;
 ros::Subscriber guiSub;
 ros::Subscriber mapSub;
+ros::Subscriber ptu_state_sub;
+ros::Subscriber node_sub;
 ros::ServiceClient nodeListClient;
 ros::ServiceClient taskAdder;
 ros::ServiceClient taskCreator;
 ros::ServiceClient taskCancel;
 ros::Publisher  grid_markers_pub;
 ros::Publisher information_pub;
+
 
 const mongo::BSONObj EMPTY_BSON_OBJ;
 
@@ -161,16 +165,25 @@ void batteryCallBack(const scitos_msgs::BatteryState &msg)
 
 void  ptuLogCallback(const std_msgs::String::ConstPtr& msg)
 {
-    ROS_INFO("PTU log: %s", msg->data);
+    ROS_INFO("PTU log: %s", msg->data.c_str());
 
-}
+    if(msg->data.compare("PTU log: start_position") == 0)
+    {
 
-void  ptuFeedbackCallback(const scitos_ptu::PanTiltFeedback::ConstPtr &msg)
-{
+        //get grid index according to the waypoint
+        gridIndex = fremengridSet.find(nodeName.c_str());
 
-    msg->feedback_ptu_pose
-    ROS_INFO("PTU log: %s", msg->data);
-
+        timestamp = ros::Time::now().sec;
+        integrateMeasurements = 3;
+        incorporating = false;
+        measurements = 0;
+        ROS_INFO("Add depth called\n");
+        int counter = 0;
+        while (incorporating == false && counter++ < 150){
+            ros::spinOnce();
+            usleep(10000);
+        }
+    }
 }
 
 /*get robot pose*/
@@ -184,6 +197,7 @@ void getTopologicalMap(const strands_navigation_msgs::TopologicalMap::ConstPtr& 
 {
     topoMap = *msg;
 }
+
 
 int coordinateSearch(string name, geometry_msgs::Point* point)
 {
@@ -284,9 +298,9 @@ void getCurrentNode(const std_msgs::String::ConstPtr& msg)
     closestNode = msg->data;
     if (fremengridSet.find(msg->data.c_str())>-1){
         nodeName = msg->data;
-        if (debug) ROS_INFO("Closest InfoTerminal node switched to %s.",nodeName.c_str());
+        if (debug) ROS_INFO("Closest Exploration node switched to %s.",nodeName.c_str());
     }else{
-        if (debug) ROS_INFO("Closest node %s - however, it's not an Infoterminal node.",msg->data.c_str());
+        if (debug) ROS_INFO("Closest node %s - however, it's not an Exploration node.",msg->data.c_str());
     }
 }
 
@@ -333,15 +347,15 @@ void retrieveGrids(uint32_t lastTime)
     char testTime[1000];
     vector< boost::shared_ptr<topological_exploration::FremenGrid> > results;
     messageStore->query<topological_exploration::FremenGrid>(results);
-    BOOST_FOREACH( boost::shared_ptr<topological_exploration::FremenGrid> p,  results)
-    {
-        time_t timeInfo = p->time;
-        strftime(testTime, sizeof(testTime), "%Y-%m-%d_%H:%M:%S",localtime(&timeInfo));
-        ROS_INFO("There were %d interaction at %s at waypoint %s.",p->number,testTime,p->waypoint.c_str());
-        if (lastTime > p->time){
-            if (p->number>1) addResult(p->waypoint.c_str(),1,p->time); else addResult(p->waypoint.c_str(),0,p->time);
-        }
-    }
+    //    BOOST_FOREACH( boost::shared_ptr<topological_exploration::FremenGrid> p,  results)
+    //    {
+    //        time_t timeInfo = p->time;
+    //        strftime(testTime, sizeof(testTime), "%Y-%m-%d_%H:%M:%S",localtime(&timeInfo));
+    //        ROS_INFO("There were %d interaction at %s at waypoint %s.",p->number,testTime,p->waypoint.c_str());
+    //        if (lastTime > p->time){
+    //            if (p->number>1) addResult(p->waypoint.c_str(),1,p->time); else addResult(p->waypoint.c_str(),0,p->time);
+    //        }
+    //    }
 }
 
 /*generates a schedule and saves it in a file*/
@@ -511,31 +525,35 @@ int createTask(int slot)
         ROS_INFO("Task %i was changed to last waypoint - information gain was %f.",taskIDs[slot],info);
     }
 
-    strands_executive_msgs::CreateTask srv;
-    taskCreator.waitForExistence();
-    if (taskCreator.call(srv))
-    {
-        strands_executive_msgs::Task task=srv.response.task;
-        task.start_node_id = fremengridSet.fremengrid[nodes[slot]]->id;
-        task.end_node_id = fremengridSet.fremengrid[nodes[slot]]->id;
-        task.priority = taskPriority;
+    //    strands_executive_msgs::CreateTask srv;
+    //    taskCreator.waitForExistence();
+    //    if (taskCreator.call(srv))
+    //    {
+    mongodb_store_msgs::StringPair taskArg;
+    taskArg.second = "short";
+    strands_executive_msgs::Task task;//=srv.response.task;
+    task.action = "do_sweep";
+    task.start_node_id = fremengridSet.fremengrid[nodes[slot]]->id;
+    task.end_node_id = fremengridSet.fremengrid[nodes[slot]]->id;
+    task.priority = taskPriority;
+    task.arguments.push_back(taskArg);
 
-        task.start_after =  ros::Time(timeSlots[slot]+taskStartDelay,0);
-        task.end_before = ros::Time(timeSlots[slot]+windowDuration - 2,0);
-        task.max_duration = task.end_before - task.start_after;
-        strands_executive_msgs::AddTask taskAdd;
-        taskAdd.request.task = task;
-        if (taskAdder.call(taskAdd))
-        {
-            sprintf(dummy,"%s for timeslot %i on %s, between %i and %i.",fremengridSet.fremengrid[nodes[slot]]->id,slot,testTime,task.start_after.sec,task.end_before.sec);
-            ROS_INFO("Task %ld created at %s ", taskAdd.response.task_id,dummy);
-            taskIDs[slot] = taskAdd.response.task_id;
-        }
-    }else{
-        sprintf(dummy,"Could not create task for timeslot %i: At %s go to %s.",slot,testTime,fremengridSet.fremengrid[nodes[slot]]->id);
-        ROS_ERROR("%s",dummy);
-        taskIDs[slot] = -1;
+    task.start_after =  ros::Time(timeSlots[slot]+taskStartDelay,0);
+    task.end_before = ros::Time(timeSlots[slot]+windowDuration - 2,0);
+    task.max_duration = task.end_before - task.start_after;
+    strands_executive_msgs::AddTask taskAdd;
+    taskAdd.request.task = task;
+    if (taskAdder.call(taskAdd))
+    {
+        sprintf(dummy,"%s for timeslot %i on %s, between %i and %i.",fremengridSet.fremengrid[nodes[slot]]->id,slot,testTime,task.start_after.sec,task.end_before.sec);
+        ROS_INFO("Task %ld created at %s ", taskAdd.response.task_id,dummy);
+        taskIDs[slot] = taskAdd.response.task_id;
     }
+    //    }else{
+    //        sprintf(dummy,"Could not create task for timeslot %i: At %s go to %s.",slot,testTime,fremengridSet.fremengrid[nodes[slot]]->id);
+    //        ROS_ERROR("%s",dummy);
+    //        taskIDs[slot] = -1;
+    //    }
 }
 
 /*drops and reschedules the following task on special conditions*/
@@ -850,17 +868,8 @@ int main(int argc,char* argv[])
     mapSub = n.subscribe("/topological_map", 1, getTopologicalMap);
     //to determine if charging is required
     batterySub = n.subscribe("battery_state", 1, batteryCallBack);
-    //to receive feedback from task_info
-    //    infoTaskSub = n.subscribe("/info_terminal/task_outcome", 1, guiCallBack);
-    //to receive feedback about the task outcome
-    //	infoTaskSub = n->subscribe("/info_terminal/task_outcome", 1, guiCallBack);
-    //to receive feedback from the gui itself
-    //    guiSub = n.subscribe("/info_terminal/active_screen", 1, interacted);
     //to get PTU state
     ptu_state_sub  = n.subscribe("/ptu/log", 1, ptuLogCallback);
-    //to get PTU feedback
-    ptu_feed_sub  = n.subscribe("/SetPTUState/feedback", 1, ptuFeedbackCallback);
-
 
 
     /* publishers */
@@ -879,7 +888,7 @@ int main(int argc,char* argv[])
     //to get relevant nodes
     nodeListClient = n.serviceClient<strands_navigation_msgs::GetTaggedNodes>("/topological_map_manager/get_tagged_nodes");
     //to create task objects
-    taskCreator = n.serviceClient<strands_executive_msgs::CreateTask>("/info_task_server_create");
+    //    taskCreator = n.serviceClient<strands_executive_msgs::CreateTask>("/info_task_server_create");
     //to add tasks to the schedule
     taskAdder = n.serviceClient<strands_executive_msgs::AddTask>("/task_executor/add_task");
     //to remove tasks from the schedule
