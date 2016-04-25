@@ -1,9 +1,0 @@
-string waypoint
-uint64 time
-uint64[] dimensions
-geometry_msgs/Point origin
-float64 resolution
-float64 last_info
-float64 predicted_info
-uint64 numcells
-topological_exploration/Frelement[] frelements

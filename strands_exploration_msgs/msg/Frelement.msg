@@ -3,4 +3,4 @@ float64 gain
 int64 measurements
 uint64 first_time
 uint64 last_time
-topological_exploration/SFrelement[] elements
+strands_exploration_msgs/SFrelement[] elements
