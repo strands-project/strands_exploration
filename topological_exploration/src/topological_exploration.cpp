@@ -182,11 +182,14 @@ int coordinateSearch(string name, geometry_msgs::Point* point)
 
     for(int i = 0; topoMap.nodes.size(); i++)
     {
+        ROS_INFO("%s %s", topoMap.nodes[i].name.c_str(), name.c_str());
+
         if(topoMap.nodes[i].name.compare(name) == 0)
         {
             point->x = topoMap.nodes[i].pose.position.x;
             point->y = topoMap.nodes[i].pose.position.y;
             point->z = topoMap.nodes[i].pose.position.z;
+            ROS_INFO("point %f %f %f", point->x, point->y, point->z);
             return 0;
         }
     }
