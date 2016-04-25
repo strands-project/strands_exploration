@@ -3,15 +3,15 @@
 import rospy
 
 from mongodb_store.message_store import MessageStoreProxy
-import topological_exploration.srv
-import topological_exploration.msg
+import strands_exploration_msgs.srv
+import strands_exploration_msgs.msg
 
 class grid_store(object):
 
     def __init__(self) :
 
-        self.save_grid_srv=rospy.Service('/topological_exploration/save_grid', topological_exploration.srv.SaveGrid, self.save_grid_cb)
-        self.load_grid_srv=rospy.Service('/topological_exploration/load_grid', topological_exploration.srv.LoadGrid, self.load_grid_cb)
+        self.save_grid_srv=rospy.Service('/topological_exploration/save_grid', strands_exploration_msgs.srv.SaveGrid, self.save_grid_cb)
+        self.load_grid_srv=rospy.Service('/topological_exploration/load_grid', strands_exploration_msgs.srv.LoadGrid, self.load_grid_cb)
         rospy.loginfo("All Done ...")
         rospy.spin()
 
@@ -30,7 +30,7 @@ class grid_store(object):
         msg_store = MessageStoreProxy(collection='strings')
         query_meta={}
         sortq={'_meta.inserted_at':-1}
-        message_list = msg_store.query(topological_exploration.msg.FremenGrid._type, {}, query_meta, sort_query= sortq.items())
+        message_list = msg_store.query(strands_exploration_msgs.msg.FremenGrid._type, {}, query_meta, sort_query= sortq.items())
         
 #        for i in message_list:
 #            print i
