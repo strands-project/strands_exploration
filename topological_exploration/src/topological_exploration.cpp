@@ -163,28 +163,6 @@ void batteryCallBack(const scitos_msgs::BatteryState &msg)
     if (minimalBatteryLevel > msg.lifePercent) forceCharging = true; else forceCharging = false;
 }
 
-void  ptuLogCallback(const std_msgs::String::ConstPtr& msg)
-{
-    ROS_INFO("PTU log: %s", msg->data.c_str());
-
-    if(msg->data.compare("PTU log: start_position") == 0)
-    {
-
-        //get grid index according to the waypoint
-        gridIndex = fremengridSet.find(nodeName.c_str());
-
-        timestamp = ros::Time::now().sec;
-        integrateMeasurements = 3;
-        incorporating = false;
-        measurements = 0;
-        ROS_INFO("Add depth called\n");
-        int counter = 0;
-        while (incorporating == false && counter++ < 150){
-            ros::spinOnce();
-            usleep(10000);
-        }
-    }
-}
 
 /*get robot pose*/
 void poseCallback(const geometry_msgs::Pose::ConstPtr& msg)
@@ -305,7 +283,7 @@ void getCurrentNode(const std_msgs::String::ConstPtr& msg)
 }
 
 /*loads relevant nodes from the map description*/
-int getRelevantNodes()
+int getRelevantNodes()//TODO get critical waypoints and non critical waypoints
 {
     int result = -1;
     uint32_t times[1];
@@ -339,7 +317,6 @@ int getRelevantNodes()
     }
     return result;
 }
-
 
 /*retrieve grids from the database, updates the grids and estimates information gain*/
 void retrieveGrids(uint32_t lastTime)
@@ -525,13 +502,9 @@ int createTask(int slot)
         ROS_INFO("Task %i was changed to last waypoint - information gain was %f.",taskIDs[slot],info);
     }
 
-    //    strands_executive_msgs::CreateTask srv;
-    //    taskCreator.waitForExistence();
-    //    if (taskCreator.call(srv))
-    //    {
     mongodb_store_msgs::StringPair taskArg;
     taskArg.second = "short";
-    strands_executive_msgs::Task task;//=srv.response.task;
+    strands_executive_msgs::Task task;
     task.action = "do_sweep";
     task.start_node_id = fremengridSet.fremengrid[nodes[slot]]->id;
     task.end_node_id = fremengridSet.fremengrid[nodes[slot]]->id;
@@ -549,11 +522,7 @@ int createTask(int slot)
         ROS_INFO("Task %ld created at %s ", taskAdd.response.task_id,dummy);
         taskIDs[slot] = taskAdd.response.task_id;
     }
-    //    }else{
-    //        sprintf(dummy,"Could not create task for timeslot %i: At %s go to %s.",slot,testTime,fremengridSet.fremengrid[nodes[slot]]->id);
-    //        ROS_ERROR("%s",dummy);
-    //        taskIDs[slot] = -1;
-    //    }
+
 }
 
 /*drops and reschedules the following task on special conditions*/
@@ -695,39 +664,21 @@ int removeGrid(const char *name)
         ROS_INFO("Removed %s grid!", name);
 }
 
-bool addDepth(topological_exploration::AddView::Request  &req, topological_exploration::AddView::Response &res)
-{
-
-    //get grid index according to the waypoint
-    gridIndex = fremengridSet.find(req.waypoint.c_str());
-
-    std_msgs::Float64 info;
-    timestamp = req.stamp;
-    integrateMeasurements = 3;
-    incorporating = false;
-    measurements = 0;
-    ROS_INFO("Add depth called\n");
-    int counter = 0;
-    while (incorporating == false && counter++ < 150){
-        ros::spinOnce();
-        usleep(10000);
-    }
-    ROS_INFO("Add depth finished\n");
-    res.result = true;
-    info.data = res.information = fremengridSet.fremengrid[gridIndex]->getObtainedInformationLast();
-    information_pub.publish(info);
-
-    //save grid to mongoDB
-    return true;
-}
 
 void imageCallback(const sensor_msgs::ImageConstPtr& msg)
 {
+
+    //get grid index according to the waypoint
+    gridIndex = fremengridSet.find(nodeName.c_str());
+
+    timestamp = msg->header.stamp.sec;
+
+    ROS_INFO("Add depth called at Waypoint %s and grid index %i\n", nodeName.c_str(), gridIndex);
+
     //stores the depth image for easier manipultation
     float depth = msg->data[640*480+640]+256*msg->data[640*480+640+1];
 
-    if (integrateMeasurements < 20 && integrateMeasurements > 0)
-        ROS_INFO("Integrate depth: %i\n",integrateMeasurements);
+    measurements = 0;
 
     //to filter some of the noise
     float *dataPtr;
@@ -786,7 +737,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
         }
 
         //incorporate depth image
-        incorporating = true;
+        //incorporating = true;
         CTimer timer;
         timer.reset();
         timer.start();
@@ -824,6 +775,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
 
         int lastInfo = fremengridSet.fremengrid[gridIndex]->obtainedInformationLast;
         ROS_INFO("Depth image to point cloud took %i ms,",timer.getTime());
+//        ROS_INFO("Information gain: %i,",lastInfo);
         fremengridSet.fremengrid[gridIndex]->incorporate(x,y,z,d,len,timestamp);
     }
 }
@@ -858,7 +810,7 @@ int main(int argc,char* argv[])
     dynSer = boost::bind(&reconfigureCallback, _1, _2);
     server.setCallback(dynSer);
 
-    /*subscribers*/
+    /*** subscribers ***/
 
     //to get the robot position
     robotPoseSub = n.subscribe("/robot_pose", 1, poseCallback);
@@ -868,50 +820,40 @@ int main(int argc,char* argv[])
     mapSub = n.subscribe("/topological_map", 1, getTopologicalMap);
     //to determine if charging is required
     batterySub = n.subscribe("battery_state", 1, batteryCallBack);
-    //to get PTU state
-    ptu_state_sub  = n.subscribe("/ptu/log", 1, ptuLogCallback);
 
 
-    /* publishers */
+    /*** publishers ***/
 
     //to visualize the 3D grid markers in rviz
     grid_markers_pub = n.advertise<visualization_msgs::Marker>("/visCells", 100);
-    //to publish schedule
-    //schedule_pub = n.advertise<topological_exploration::Schedule>("/fremenGrid/visCells", 100);
     //to publish the amount of information obtained ater a sweep
     information_pub  = n.advertise<std_msgs::Float64>("/obtainedInformation", 100);
 
 
-
-    /* services */
+    /*** services ***/
 
     //to get relevant nodes
     nodeListClient = n.serviceClient<strands_navigation_msgs::GetTaggedNodes>("/topological_map_manager/get_tagged_nodes");
     //to create task objects
-    //    taskCreator = n.serviceClient<strands_executive_msgs::CreateTask>("/info_task_server_create");
-    //to add tasks to the schedule
     taskAdder = n.serviceClient<strands_executive_msgs::AddTask>("/task_executor/add_task");
     //to remove tasks from the schedule
     taskCancel = n.serviceClient<strands_executive_msgs::CancelTask>("/task_executor/cancel_task");
     //to visualize 3D grid w/ dynamics
     ros::ServiceServer visualize_grid = n.advertiseService("/view_grid", visualizeGrid);
-    //to send exploration schedule
-    //    ros::ServiceServer send_schedule = n.advertiseService("/schedule", sendSchedule);
-    //to add measurements to the grid
-    ros::ServiceServer depth_service = n.advertiseService("/depth", addDepth);
 
-    /* tf listener*/
+
+    /*** tf listener ***/
 
     //to convert depth image from optical frame to map frame
     tf_listener = new tf::TransformListener();
     ros::Time now = ros::Time(0);
-    tf_listener->waitForTransform("/head_xtion_depth_optical_frame","/map",now, ros::Duration(3.0));
+    tf_listener->waitForTransform("/head_xtion_depth_optical_frame","/map",now, ros::Duration(10.0));
 
-    /* image transport */
+    /*** image transport ***/
 
     //to subscribe the depth image and add it to the grid (ray casting)
     image_transport::ImageTransport imageTransporter(n);
-    image_transport::Subscriber image_subscriber = imageTransporter.subscribe("/head_xtion/depth/image_rect", 1, imageCallback);
+    image_transport::Subscriber image_subscriber = imageTransporter.subscribe("/local_metric_map/depth/depth_filtered", 20, imageCallback);
 
 
     //get topological map nodes tagged as Exploration
@@ -945,7 +887,7 @@ int main(int argc,char* argv[])
         {
             lastTimeSlot=currentTimeSlot;
             int a=getNextTimeSlot(numCurrentTasks);
-            if ( a >= 0){
+            if (a >= 0){
                 createTask(a);
                 numCurrentTasks++;
             }
