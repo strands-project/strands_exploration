@@ -174,16 +174,17 @@ void poseCallback(const geometry_msgs::Pose::ConstPtr& msg)
 void getTopologicalMap(const strands_navigation_msgs::TopologicalMap::ConstPtr& msg)
 {
     topoMap = *msg;
+	ROS_INFO("shit happens!!!!");
 }
 
 
 int coordinateSearch(string name, geometry_msgs::Point* point)
 {
-
+//	ROS_INFO("map size: %s", topoMap.nodes.pointset);
     for(int i = 0; topoMap.nodes.size(); i++)
     {
         ROS_INFO("%s %s", topoMap.nodes[i].name.c_str(), name.c_str());
-
+	ROS_INFO("here");
         if(topoMap.nodes[i].name.compare(name) == 0)
         {
             point->x = topoMap.nodes[i].pose.position.x;
@@ -298,6 +299,7 @@ int getRelevantNodes()//TODO get critical waypoints and non critical waypoints
         for (int i=0;i<srv.response.nodes.size();i++)
         {
             geometry_msgs::Point node_coordinates, grid_origin;
+		ROS_INFO("weird stuff happening");
             coordinateSearch(srv.response.nodes[i], &node_coordinates);
             ROS_INFO("name: %s point: (%f, %f, %f)", srv.response.nodes[i].c_str(), node_coordinates.x, node_coordinates.y, node_coordinates.z);
 
@@ -857,8 +859,8 @@ int main(int argc,char* argv[])
     //to subscribe the depth image and add it to the grid (ray casting)
     image_transport::ImageTransport imageTransporter(n);
     image_transport::Subscriber image_subscriber = imageTransporter.subscribe("/local_metric_map/depth/depth_filtered", 20, imageCallback);
-
-
+ros::spinOnce();
+sleep(1);
     //get topological map nodes tagged as Exploration
     if (getRelevantNodes() < 0)
     {
