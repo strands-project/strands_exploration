@@ -21,9 +21,9 @@
 #include <visualization_msgs/MarkerArray.h>
 #include <std_msgs/ColorRGBA.h>
 #include <scitos_msgs/BatteryState.h>
-#include <topological_exploration/FremenGrid.h>
-#include <topological_exploration/Frelement.h>
-#include <topological_exploration/SFrelement.h>
+#include <strands_exploration_msgs//FremenGrid.h>
+#include <strands_exploration_msgs/Frelement.h>
+#include <strands_exploration_msgs/SFrelement.h>
 #include "CFremenGridSet.h"
 #include <time.h> 
 #include "mongodb_store/message_store.h"
@@ -35,8 +35,8 @@
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/Image.h>
 #include <tf/transform_listener.h>
-#include "topological_exploration/AddView.h"
-#include "topological_exploration/Visualize.h"
+#include "strands_exploration_msgs/AddView.h"
+#include "strands_exploration_msgs/Visualize.h"
 #include <std_msgs/Float64.h>
 #include <scitos_ptu/PanTiltActionFeedback.h>
 #include <mongodb_store_msgs/StringPair.h>
@@ -108,7 +108,6 @@ int numCurrentTasks = 0;
 string nodeName = "ChargingPoint";
 string closestNode = "ChargingPoint";
 int32_t lastInteractionTime = -1;
-geometry_msgs::Pose lastPose;
 bool forceCharging = false;
 int timeOffset = 0;
 
@@ -140,7 +139,7 @@ uint32_t getMidnightTime(uint32_t givenTime)
     return ((givenTime+timeOffset)/rescheduleInterval)*rescheduleInterval-timeOffset;
 }
 
-//parameter reconfiguration
+/*parameter reconfiguration*/
 void reconfigureCallback(topological_exploration::topological_explorationConfig &config, uint32_t level) 
 {
     ROS_INFO("Reconfigure Request: %lf %d %d %d %d", config.explorationRatio, config.minimalBatteryLevel, config.interactionTimeout, config.maxTaskNumber, config.taskDuration);
@@ -156,35 +155,27 @@ void reconfigureCallback(topological_exploration::topological_explorationConfig 
     entropyThreshold = config.entropyThreshold;
 }
 
-//listen to battery and set forced charging if necessary
+/*listen to battery and set forced charging if necessary*/
 void batteryCallBack(const scitos_msgs::BatteryState &msg)
 {
     ROS_DEBUG("SpatioTemporal Exploration: battery level %i %i",msg.lifePercent,minimalBatteryLevel);
     if (minimalBatteryLevel > msg.lifePercent) forceCharging = true; else forceCharging = false;
 }
 
-
-/*get robot pose*/
-void poseCallback(const geometry_msgs::Pose::ConstPtr& msg)
-{
-    lastPose = *msg;
-}
-
 /*gets topological map*/
 void getTopologicalMap(const strands_navigation_msgs::TopologicalMap::ConstPtr& msg)
 {
     topoMap = *msg;
-	ROS_INFO("shit happens!!!!");
 }
 
-
+/*returns the coordinates for a given waypoint*/
 int coordinateSearch(string name, geometry_msgs::Point* point)
 {
-//	ROS_INFO("map size: %s", topoMap.nodes.pointset);
+    //	ROS_INFO("map size: %s", topoMap.nodes.pointset);
     for(int i = 0; topoMap.nodes.size(); i++)
     {
         ROS_INFO("%s %s", topoMap.nodes[i].name.c_str(), name.c_str());
-	ROS_INFO("here");
+        ROS_INFO("here");
         if(topoMap.nodes[i].name.compare(name) == 0)
         {
             point->x = topoMap.nodes[i].pose.position.x;
@@ -268,7 +259,7 @@ int publishGrid(string waypoint, unsigned int stamp, float minP, float maxP, flo
     return cells;
 }
 
-bool visualizeGrid(topological_exploration::Visualize::Request  &req, topological_exploration::Visualize::Response &res)
+bool visualizeGrid(strands_exploration_msgs::Visualize::Request  &req, strands_exploration_msgs::Visualize::Response &res)
 {
     int numvoxels = publishGrid(req.waypoint, req.stamp, req.minProbability, req.maxProbability, req.period, req.type, req.name, req.set_color, req.color);
     ROS_INFO("%d voxels published.", numvoxels);
@@ -299,7 +290,7 @@ int getRelevantNodes()//TODO get critical waypoints and non critical waypoints
         for (int i=0;i<srv.response.nodes.size();i++)
         {
             geometry_msgs::Point node_coordinates, grid_origin;
-		ROS_INFO("weird stuff happening");
+            ROS_INFO("weird stuff happening");
             coordinateSearch(srv.response.nodes[i], &node_coordinates);
             ROS_INFO("name: %s point: (%f, %f, %f)", srv.response.nodes[i].c_str(), node_coordinates.x, node_coordinates.y, node_coordinates.z);
 
@@ -327,8 +318,8 @@ int getRelevantNodes()//TODO get critical waypoints and non critical waypoints
 void retrieveGrids(uint32_t lastTime)
 {
     char testTime[1000];
-    vector< boost::shared_ptr<topological_exploration::FremenGrid> > results;
-    messageStore->query<topological_exploration::FremenGrid>(results);
+    vector< boost::shared_ptr<strands_exploration_msgs::FremenGrid> > results;
+    messageStore->query<strands_exploration_msgs::FremenGrid>(results);
     //    BOOST_FOREACH( boost::shared_ptr<topological_exploration::FremenGrid> p,  results)
     //    {
     //        time_t timeInfo = p->time;
@@ -579,7 +570,7 @@ int saveGridDB(const char *name)
     {
 
         /*Fremen grid*/
-        topological_exploration::FremenGrid grid_msg;
+        strands_exploration_msgs::FremenGrid grid_msg;
 
         //Waypoint name
         grid_msg.waypoint = name;
@@ -600,7 +591,7 @@ int saveGridDB(const char *name)
         grid_msg.numcells = fremengridSet.fremengrid[gridIndex]->numCells;
 
         /*Frelement*/
-        topological_exploration::Frelement frelement_msg;
+        strands_exploration_msgs::Frelement frelement_msg;
 
         int frk;
 
@@ -648,8 +639,8 @@ int saveGridDB(const char *name)
 int loadGridDB(const char *name)
 {
 
-    vector< boost::shared_ptr<topological_exploration::FremenGrid> > results;
-    messageStore->queryNamed<topological_exploration::FremenGrid>(name,results,false);
+    vector< boost::shared_ptr<strands_exploration_msgs::FremenGrid> > results;
+    messageStore->queryNamed<strands_exploration_msgs::FremenGrid>(name,results,false);
 
     //    BOOST_FOREACH( boost::shared_ptr<topological_exploration::FremenGrid> p,  results)
     //    {
@@ -691,9 +682,12 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
     if (measurements < maxMeasurements)
     {
         float di = 0;
+ROS_INFO("gebsk1");
         if (measurements == 0) memset(dept,0,sizeof(float)*307200*(maxMeasurements+1));
+ROS_INFO("gebsk2");
         for (int i = 0;i<307200;i++)
         {
+            ROS_INFO("gebskiii");
             dataPtr = &dept[i*(maxMeasurements+1)];
             di = (msg->data[i*2]+256*msg->data[i*2+1])/1000.0;
             dataPtr[measurements+1] = di;
@@ -707,7 +701,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
         }
     }
     measurements++;
-
+ROS_INFO("gebsk3");
     if (measurements==maxMeasurements)
     {
         //ray casting auxiliary variables
@@ -780,7 +774,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
 
         int lastInfo = fremengridSet.fremengrid[gridIndex]->obtainedInformationLast;
         ROS_INFO("Depth image to point cloud took %i ms,",timer.getTime());
-//        ROS_INFO("Information gain: %i,",lastInfo);
+        //        ROS_INFO("Information gain: %i,",lastInfo);
         fremengridSet.fremengrid[gridIndex]->incorporate(x,y,z,d,len,timestamp);
     }
 }
@@ -817,8 +811,6 @@ int main(int argc,char* argv[])
 
     /*** subscribers ***/
 
-    //to get the robot position
-    robotPoseSub = n.subscribe("/robot_pose", 1, poseCallback);
     //to get the current node
     currentNodeSub = n.subscribe("/closest_node", 1, getCurrentNode);
     //to get the list of nodes
@@ -859,8 +851,10 @@ int main(int argc,char* argv[])
     //to subscribe the depth image and add it to the grid (ray casting)
     image_transport::ImageTransport imageTransporter(n);
     image_transport::Subscriber image_subscriber = imageTransporter.subscribe("/local_metric_map/depth/depth_filtered", 20, imageCallback);
-ros::spinOnce();
-sleep(1);
+    ros::spinOnce();
+    sleep(0.5);
+
+
     //get topological map nodes tagged as Exploration
     if (getRelevantNodes() < 0)
     {
