@@ -6,4 +6,4 @@ float64 resolution
 float64 last_info
 float64 predicted_info
 uint64 numcells
-infremen/Frelement[] frelements
+strands_exploration_msgs/Frelement[] frelements
