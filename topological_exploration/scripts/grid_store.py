@@ -1,35 +1,48 @@
 #!/usr/bin/env python
 
-import sys
 import rospy
 
 from mongodb_store.message_store import MessageStoreProxy
-from std_msgs.msg import String
-from topological_exploration.srv import *
-
+import topological_exploration.srv
+import topological_exploration.msg
 
 class grid_store(object):
 
     def __init__(self) :
 
-        self.save_grid_srv=rospy.Service('/save_grid', topological_exploration.srv.SaveGrid, self.save_grid_cb)
-        self.load_grid_srv=rospy.Service('/save_grid', topological_exploration.srv.SaveGrid, self.load_grid_cb)
+        self.save_grid_srv=rospy.Service('/topological_exploration/save_grid', topological_exploration.srv.SaveGrid, self.save_grid_cb)
+        self.load_grid_srv=rospy.Service('/topological_exploration/load_grid', topological_exploration.srv.LoadGrid, self.load_grid_cb)
         rospy.loginfo("All Done ...")
         rospy.spin()
 
 
     def save_grid_cb(self, req):
+        print req
+        print req.grid
+        
         meta ={}
         msg_store = MessageStoreProxy(collection='strings') #change this
-        msg_store.insert(req,meta)
+        msg_store.insert(req.grid,meta)
+
+        return True
 
     def load_grid_cb(self, req):
-        msg_store = MessageStoreProxy(collection='door_stats')
-
+        msg_store = MessageStoreProxy(collection='strings')
         query_meta={}
+        sortq={'_meta.inserted_at':-1}
+        message_list = msg_store.query(topological_exploration.msg.FremenGrid._type, {}, query_meta, sort_query= sortq.items())
+        
+#        for i in message_list:
+#            print i
 
-        message_list = msg_store.query(std_msgs.msg.String, {}, query_meta)    
-
+        number = req.number
+        if number == -1:
+            number = 0
+        elif number >= len(message_list) :
+            number = len(message_list)-1
+        
+        
+        return message_list[number][0]
 
 
 if __name__ == '__main__':
