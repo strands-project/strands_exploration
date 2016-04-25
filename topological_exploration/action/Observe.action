@@ -1,0 +1,9 @@
+# Define the goal
+uint64 time
+---
+# Define the result
+float64 information
+---
+# Define a feedback message
+uint64 scans
+
