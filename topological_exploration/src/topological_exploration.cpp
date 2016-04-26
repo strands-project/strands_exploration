@@ -54,7 +54,7 @@ int rescheduleInterval = 86400;
 double cellSize = 0.1;
 int dimX = 100;
 int dimY = 100;
-int dimZ = 40;
+int dimZ = 80;
 float camera_range = 4.0;
 
 //standard parameters
@@ -357,6 +357,7 @@ int generateNewSchedule(uint32_t givenTime)//TODO -> save schedule in MongoDB
             times[0] = timeSlots[s];
             coordinateSearch(fremengridSet.fremengrid[i]->id, &observationPoint);
             entropy[0] = fremengridSet.estimateEntropy(fremengridSet.fremengrid[i]->id, observationPoint.x, observationPoint.y, 1.6, camera_range, times[0]);
+            ROS_INFO("ID: %s\tEntropy: %f", fremengridSet.fremengrid[i]->id,entropy[0]);
             lastWheel += explorationRatio*entropy[0];
             wheel[i] = lastWheel;
         }
@@ -392,6 +393,7 @@ int generateNewSchedule(uint32_t givenTime)//TODO -> save schedule in MongoDB
         timeInfo = timeSlots[s];
         strftime(dummy, sizeof(dummy), "%Y-%m-%d_%H:%M:%S",localtime(&timeInfo));
         fprintf(file,"%ld %s %s\n",timeInfo,dummy,fremengridSet.fremengrid[nodes[s]]->id);
+        ROS_INFO("Schedule: %ld %s %s\n",timeInfo,dummy,fremengridSet.fremengrid[nodes[s]]->id);
     }
     fclose(file);
 }
@@ -494,7 +496,7 @@ int createTask(int slot)
     }
 
     mongodb_store_msgs::StringPair taskArg;
-    taskArg.second = "short";
+    taskArg.second = "medium";
     strands_executive_msgs::Task task;
     task.action = "do_sweep";
     task.start_node_id = fremengridSet.fremengrid[nodes[slot]]->id;
@@ -699,7 +701,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
         }
     }
     measurements++;
-    ROS_INFO("gebsk3");
+
     if (measurements==maxMeasurements)
     {
         //ray casting auxiliary variables
@@ -741,6 +743,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
         x[len] = xPtu = st.getOrigin().x();
         y[len] = yPtu = st.getOrigin().y();
         z[len] = zPtu = st.getOrigin().z();
+        ROS_INFO("ray origin %f %f %f", xPtu, yPtu, zPtu);
         double a,b,c;
         tf::Matrix3x3  rot = st.getBasis();
         rot.getEulerYPR(a,b,c,1);
@@ -857,7 +860,7 @@ int main(int argc,char* argv[])
 
     //to subscribe the depth image and add it to the grid (ray casting)
     image_transport::ImageTransport imageTransporter(n);
-    image_transport::Subscriber image_subscriber = imageTransporter.subscribe("/local_metric_map/depth/depth_filtered", 20, imageCallback);
+    image_transport::Subscriber image_subscriber = imageTransporter.subscribe("/local_metric_map/depth/depth_filtered", 50, imageCallback);
     ros::spinOnce();
     sleep(0.5);
 
