@@ -124,7 +124,7 @@ float info;
 int integrateMeasurements = 0;
 int maxMeasurements = 1;//15;
 int measurements = maxMeasurements;
-float *dept;
+//float *dept;
 bool first_grid = true;
 bool incorporating = false;
 unsigned int timestamp;
@@ -360,7 +360,7 @@ int generateNewSchedule(uint32_t givenTime)//TODO save schedule in MongoDB
         {
             times[0] = timeSlots[s];
             coordinateSearch(fremengridSet.fremengrid[i]->id, &observationPoint);
-            entropy[0] = fremengridSet.estimateEntropy(fremengridSet.fremengrid[i]->id, observationPoint.x, observationPoint.y, observationPoint.z, camera_range, times[0]);
+            entropy[0] = fremengridSet.estimateEntropy(fremengridSet.fremengrid[i]->id, observationPoint.x, observationPoint.y, 1.6, camera_range, times[0]);
             lastWheel += explorationRatio*entropy[0];
             wheel[i] = lastWheel;
         }
@@ -672,7 +672,8 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
 
     //stores the depth image for easier manipultation
     float depth = msg->data[640*480+640]+256*msg->data[640*480+640+1];
-
+    float *dept;
+    dept = (float*)malloc(sizeof(float)*307200*(maxMeasurements+1));
     measurements = 0;
 
     //to filter some of the noise
@@ -681,8 +682,11 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
     if (measurements < maxMeasurements)
     {
         float di = 0;
-ROS_INFO("maxMeasurements: %d", maxMeasurements);
+
+        //ROS_INFO("maxMeasurements: %d", maxMeasurements);
         if (measurements == 0) memset(dept,0,sizeof(float)*307200*(maxMeasurements+1));
+
+
         for (int i = 0;i<307200;i++)
         {
 
