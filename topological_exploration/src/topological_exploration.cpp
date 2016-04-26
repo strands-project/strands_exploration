@@ -51,10 +51,10 @@ int windowDuration = 180;
 int rescheduleInterval = 86400;
 
 //3D grid parameters
-float cellSize = 0.1;
-float dimX = 100;
-float dimY = 100;
-float dimZ = 40;
+double cellSize = 0.1;
+int dimX = 100;
+int dimY = 100;
+int dimZ = 40;
 float camera_range = 4.0;
 
 //standard parameters
@@ -171,11 +171,8 @@ void getTopologicalMap(const strands_navigation_msgs::TopologicalMap::ConstPtr& 
 /*returns the coordinates for a given waypoint*/
 int coordinateSearch(string name, geometry_msgs::Point* point)
 {
-    //	ROS_INFO("map size: %s", topoMap.nodes.pointset);
     for(int i = 0; topoMap.nodes.size(); i++)
     {
-        ROS_INFO("%s %s", topoMap.nodes[i].name.c_str(), name.c_str());
-
         if(topoMap.nodes[i].name.compare(name) == 0)
         {
             point->x = topoMap.nodes[i].pose.position.x;
@@ -277,7 +274,7 @@ void getCurrentNode(const std_msgs::String::ConstPtr& msg)
 }
 
 /*loads relevant nodes from the map description*/
-int getRelevantNodes()//TODO get critical waypoints and non critical waypoints
+int getRelevantNodes()//TODO -> get critical and non-critical waypoints
 {
     int result = -1;
     uint32_t times[1];
@@ -289,9 +286,8 @@ int getRelevantNodes()//TODO get critical waypoints and non critical waypoints
         for (int i=0;i<srv.response.nodes.size();i++)
         {
             geometry_msgs::Point node_coordinates, grid_origin;
-            ROS_INFO("weird stuff happening");
             coordinateSearch(srv.response.nodes[i], &node_coordinates);
-            ROS_INFO("name: %s point: (%f, %f, %f)", srv.response.nodes[i].c_str(), node_coordinates.x, node_coordinates.y, node_coordinates.z);
+            //ROS_INFO("name: %s point: (%f, %f, %f)", srv.response.nodes[i].c_str(), node_coordinates.x, node_coordinates.y, node_coordinates.z);
 
             //grid origin calculation
             grid_origin.x = node_coordinates.x - (dimX*cellSize)/2;
@@ -303,7 +299,7 @@ int getRelevantNodes()//TODO get critical waypoints and non critical waypoints
 
         numNodes = fremengridSet.numFremenGrids;
         ROS_INFO("Number of exploration nodes: %d",numNodes);
-        for (int i=0;i<numNodes;i++) ROS_INFO("Exploration waypoint %i: %s.",i,fremengridSet.fremengrid[i]->id);
+        for (int i=0;i<numNodes;i++) ROS_INFO("FreMEnGrid ID: %i Label: %s.",i,fremengridSet.fremengrid[i]->id);
         result = numNodes;
     }
     else
@@ -314,7 +310,7 @@ int getRelevantNodes()//TODO get critical waypoints and non critical waypoints
 }
 
 /*retrieve grids from the database, updates the grids and estimates information gain*/
-void retrieveGrids(uint32_t lastTime)
+void retrieveGrids(uint32_t lastTime)//TODO -> call load service
 {
     char testTime[1000];
     vector< boost::shared_ptr<strands_exploration_msgs::FremenGrid> > results;
@@ -331,7 +327,7 @@ void retrieveGrids(uint32_t lastTime)
 }
 
 /*generates a schedule and saves it in a file*/
-int generateNewSchedule(uint32_t givenTime)//TODO save schedule in MongoDB
+int generateNewSchedule(uint32_t givenTime)//TODO -> save schedule in MongoDB
 {
     /*establish relevant time frame*/
     int numSlots = 24*3600/windowDuration;
@@ -400,7 +396,7 @@ int generateNewSchedule(uint32_t givenTime)//TODO save schedule in MongoDB
     fclose(file);
 }
 
-int generateSchedule(uint32_t givenTime)
+int generateSchedule(uint32_t givenTime)//TODO -> save schedule in MongoDB
 {
     char dummy[1000];
     int numSlots = 24*3600/windowDuration;
@@ -471,7 +467,7 @@ int getNextTimeSlot(int lookAhead)
         //ROS_INFO("%s",dummy);
     }
     if (currentSlot >= 0 && currentSlot < numSlots) return currentSlot;
-    ROS_ERROR("Infoterminal schedule error: attempting to get task in a non-existent time slot.");
+    ROS_ERROR("Exploration schedule error: attempting to get task in a non-existent time slot.");
     return -1;
 }
 
@@ -703,7 +699,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
         }
     }
     measurements++;
-ROS_INFO("gebsk3");
+    ROS_INFO("gebsk3");
     if (measurements==maxMeasurements)
     {
         //ray casting auxiliary variables
@@ -779,6 +775,11 @@ ROS_INFO("gebsk3");
         //        ROS_INFO("Information gain: %i,",lastInfo);
         fremengridSet.fremengrid[gridIndex]->incorporate(x,y,z,d,len,timestamp);
     }
+
+    std_msgs::ColorRGBA color_aux;
+    color_aux.g = color_aux.a = 1.0;
+    color_aux.r = color_aux.b = 0.0;
+    publishGrid(nodeName.c_str(), 0, 0.9, 1.0, 0, 0 , nodeName.c_str(), false, color_aux);
 }
 
 
@@ -800,9 +801,13 @@ int main(int argc,char* argv[])
 
     //load parameters
     n.param<std::string>("/collectionName", collectionName, "FremenGrid");
-    n.param<std::string>("/scheduleDirectory", scheduleDirectory, "/localhome/strands/schedules");//????
+    n.param<std::string>("/scheduleDirectory", scheduleDirectory, "/localhome/strands/schedules");// TODO -> save in mongoDB
     n.param("/taskPriority", taskPriority,1);
     n.param("/verbose", debug,false);
+    n.param("/resolution", cellSize, 0.1);
+    n.param("/dimX", dimX, 100);
+    n.param("/dimY", dimY, 100);
+    n.param("/dimZ", dimZ, 40);
 
 
     //initialize dynamic reconfiguration feedback

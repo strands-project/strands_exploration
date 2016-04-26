@@ -460,7 +460,6 @@ float CFremenGrid::incorporate(float *x,float *y,float *z,float *d,int size,uint
                 //if (debug) printf("Index %06i %06i %06i %.2f %.2f %.2f %.2f\n",index,final,startIndex,bx,bx*rx+px,by*ry+py,bz*rz+pz);
                 if (index < 0 || index >= numCells)
                 {
-                    printf("break!!\n");
                     break;
                 }
                 if (j > 400){
