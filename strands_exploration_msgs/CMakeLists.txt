@@ -29,6 +29,7 @@ add_service_files(
   Visualize.srv
   SaveGrid.srv
   LoadGrid.srv
+  GetExplorationTasks.srv
 )
 
 ## Generate actions in the 'action' folder
