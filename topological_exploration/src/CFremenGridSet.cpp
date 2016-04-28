@@ -71,7 +71,9 @@ int CFremenGridSet::estimateEntropy(const char *name,float x,float y,float z,flo
 {
 	if (find(name) < 0) return -1;
 	//printf("Estimate %i %s \n",activeIndex,active->id);
-    return active->estimateInformation(x, y, z, range, t);
+float info =  active->estimateInformation(x,y,z,range,t);
+printf("EstimateInformation %i %s %f\n",activeIndex,active->id, info);
+    return info;//active->estimateInformation(x, y, z, range, t);
 }
 
 int CFremenGridSet::find(const char *name)

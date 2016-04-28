@@ -356,7 +356,7 @@ int generateNewSchedule(uint32_t givenTime)//TODO -> save schedule in MongoDB
             coordinateSearch(fremengridSet.fremengrid[i]->id, &observationPoint);
             entropy[0] = fremengridSet.estimateEntropy(fremengridSet.fremengrid[i]->id, observationPoint.x, observationPoint.y, 1.6, camera_range, times[0]);
 
-            if(entropy[0]  = 0.0)
+            //if(entropy[0]  = 0.0)
                 ROS_INFO("ID: %s\t Point: %f %f %f\t Entropy: %f", fremengridSet.fremengrid[i]->id,observationPoint.x, observationPoint.y,observationPoint.z,entropy[0]);
 
             lastWheel += explorationRatio*entropy[0];
