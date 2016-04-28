@@ -54,7 +54,7 @@ int rescheduleInterval = 86400;
 double cellSize = 0.1;
 int dimX = 100;
 int dimY = 100;
-int dimZ = 80;
+int dimZ = 100;
 float camera_range = 4.0;
 
 //standard parameters
@@ -290,7 +290,7 @@ int getRelevantNodes()//TODO -> get critical and non-critical waypoints
             //grid origin calculation
             grid_origin.x = node_coordinates.x - (dimX*cellSize)/2;
             grid_origin.y = node_coordinates.y - (dimY*cellSize)/2;
-            grid_origin.z = -0.1;
+            grid_origin.z = 0.0;
 
             fremengridSet.add(srv.response.nodes[i].c_str(), grid_origin.x, grid_origin.y, grid_origin.z, dimX, dimY, dimZ, cellSize);
         }
@@ -354,8 +354,8 @@ int generateNewSchedule(uint32_t givenTime)//TODO -> save schedule in MongoDB
         {
             times[0] = timeSlots[s];
             coordinateSearch(fremengridSet.fremengrid[i]->id, &observationPoint);
-		fremengridSet.recalculate(fremengridSet.fremengrid[i]->id, times[0]);
-            entropy[0] = fremengridSet.estimateEntropy(fremengridSet.fremengrid[i]->id, observationPoint.x, observationPoint.y, 1.6, camera_range, times[0]);
+        fremengridSet.recalculate(fremengridSet.fremengrid[i]->id, times[0]);
+            entropy[0] = fremengridSet.estimateEntropy(fremengridSet.fremengrid[i]->id, observationPoint.x, observationPoint.y, 1.662, camera_range, times[0]);
 
             //if(entropy[0]  = 0.0)
                 ROS_INFO("ID: %s\t Point: %f %f %f\t Entropy: %f", fremengridSet.fremengrid[i]->id,observationPoint.x, observationPoint.y,observationPoint.z,entropy[0]);
@@ -498,7 +498,7 @@ int createTask(int slot)
     }
 
     mongodb_store_msgs::StringPair taskArg;
-    taskArg.second = "medium";
+    taskArg.second = "complete";
     strands_executive_msgs::Task task;
     task.action = "do_sweep";
     task.start_node_id = fremengridSet.fremengrid[nodes[slot]]->id;
@@ -745,7 +745,6 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
         x[len] = xPtu = st.getOrigin().x();
         y[len] = yPtu = st.getOrigin().y();
         z[len] = zPtu = st.getOrigin().z();
-        ROS_INFO("ray origin %f %f %f", xPtu, yPtu, zPtu);
         double a,b,c;
         tf::Matrix3x3  rot = st.getBasis();
         rot.getEulerYPR(a,b,c,1);
@@ -775,9 +774,8 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
             }
         }
 
-        int lastInfo = fremengridSet.fremengrid[gridIndex]->obtainedInformationLast;
+        //int lastInfo = fremengridSet.fremengrid[gridIndex]->obtainedInformationLast;
         ROS_INFO("Depth image to point cloud took %i ms,",timer.getTime());
-        //        ROS_INFO("Information gain: %i,",lastInfo);
         fremengridSet.fremengrid[gridIndex]->incorporate(x,y,z,d,len,timestamp);
     }
 
