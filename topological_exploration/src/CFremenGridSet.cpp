@@ -17,12 +17,18 @@ CFremenGridSet::~CFremenGridSet()
 int CFremenGridSet::add(const char* name, float originX,float originY,float originZ,int dimX,int dimY,int dimZ,float cellSize)
 {
 	int exists = find(name);
-    if (exists >= 0) return -1;
+    printf("Add %i %s \n",activeIndex,active->id);
+    if (exists >= 0)
+    {
+        printf("grid already exists %i %s \n",activeIndex,active->id);
+        return -1;
+    }
     else
 	{
         fremengrid[numFremenGrids++] = new CFremenGrid(name, originX, originY, originZ, dimX, dimY, dimZ, cellSize);
         activeIndex = numFremenGrids-1;
         active = fremengrid[numFremenGrids-1];
+        printf("Added grid %i %s \n",activeIndex,active->id);
 	}
 
     return 0;
