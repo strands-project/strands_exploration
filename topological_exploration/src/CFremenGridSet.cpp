@@ -17,7 +17,8 @@ CFremenGridSet::~CFremenGridSet()
 int CFremenGridSet::add(const char* name, float originX,float originY,float originZ,int dimX,int dimY,int dimZ,float cellSize)
 {
 	int exists = find(name);
-    printf("Add %i %s \n",activeIndex,active->id);
+//    printf("Add %i %s \n",activeIndex,active->id);
+
     if (exists >= 0)
     {
         printf("grid already exists %i %s \n",activeIndex,active->id);
@@ -42,6 +43,13 @@ int CFremenGridSet::incorporate(const char *name, float *x,float *y,float *z,flo
     int exists = find(name);
     if (exists < 0) return -1;
     else return active->incorporate( x, y, z, d, size, t);
+
+}
+
+float CFremenGridSet::recalculate(const char *name, uint32_t timeStamp)
+{
+    find(name);
+    return active->recalculate(timeStamp);
 
 }
 

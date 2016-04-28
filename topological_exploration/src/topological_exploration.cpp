@@ -354,6 +354,7 @@ int generateNewSchedule(uint32_t givenTime)//TODO -> save schedule in MongoDB
         {
             times[0] = timeSlots[s];
             coordinateSearch(fremengridSet.fremengrid[i]->id, &observationPoint);
+		fremengridSet.recalculate(fremengridSet.fremengrid[i]->id, times[0]);
             entropy[0] = fremengridSet.estimateEntropy(fremengridSet.fremengrid[i]->id, observationPoint.x, observationPoint.y, 1.6, camera_range, times[0]);
 
             //if(entropy[0]  = 0.0)

@@ -35,6 +35,7 @@ class CFremenGridSet
 
         float dominant(const char *name, unsigned int index, uint32_t timeStamp);
 
+float recalculate(const char *name, uint32_t timeStamp);
 
 		/*estimate entropies of the given state for the given times - the entropy array is an output
 		  returns false if the state with the given ID is not present in the collection
