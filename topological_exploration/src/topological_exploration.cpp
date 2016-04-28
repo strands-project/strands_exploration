@@ -277,8 +277,7 @@ void getCurrentNode(const std_msgs::String::ConstPtr& msg)
 int getRelevantNodes()//TODO -> get critical and non-critical waypoints
 {
     int result = -1;
-    uint32_t times[1];
-    unsigned char signal[1];
+
     strands_navigation_msgs::GetTaggedNodes srv;
     srv.request.tag = "Exploration";
     if (nodeListClient.call(srv))
@@ -287,7 +286,6 @@ int getRelevantNodes()//TODO -> get critical and non-critical waypoints
         {
             geometry_msgs::Point node_coordinates, grid_origin;
             coordinateSearch(srv.response.nodes[i], &node_coordinates);
-            //ROS_INFO("name: %s point: (%f, %f, %f)", srv.response.nodes[i].c_str(), node_coordinates.x, node_coordinates.y, node_coordinates.z);
 
             //grid origin calculation
             grid_origin.x = node_coordinates.x - (dimX*cellSize)/2;
@@ -866,12 +864,13 @@ int main(int argc,char* argv[])
 
 
     //get topological map nodes tagged as Exploration
-    if (getRelevantNodes() < 0)
+    int relevant_nodes = getRelevantNodes();
+    if (relevant_nodes < 0)
     {
         ROS_ERROR("Topological navigation does not report about tagged nodes. Is it running?");
         return -1;
     }
-    if (getRelevantNodes() == 0)
+    else if (relevant_nodes == 0)
     {
         ROS_ERROR("There are no Info-Terminal relevant nodes in the topological map ");
         return -1;

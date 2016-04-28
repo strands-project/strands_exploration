@@ -1,5 +1,5 @@
-#ifndef CTIMER_H
-#define CTIMER_H
+#ifndef CTIMEREXP_H
+#define CTIMEREXP_H
 
 /**
 @author Tom Krajnik
