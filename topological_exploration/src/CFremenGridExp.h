@@ -1,5 +1,5 @@
-#ifndef CFREMENGRID_H
-#define CFREMENGRID_H
+#ifndef CFREMENGRIDEXP_H
+#define CFREMENGRIDEXP_H
 
 #include <stdlib.h>
 #include <stdio.h>

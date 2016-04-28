@@ -43,14 +43,14 @@ add_dependencies(topological_exploration ${catkin_EXPORTED_TARGETS} mongodb_stor
 
 add_library(frelement_exp src/CFrelementExp.cpp)
 add_library(fremen_timer_exp src/CTimerExp.cpp)
-add_library(fremengridlib src/CFremenGrid.cpp)
+add_library(fremengridexplib src/CFremenGridExp.cpp)
 add_library(exploration_timer src/CTimerExp.cpp)
 add_library(exploration_fremengridset src/CFremenGridSet.cpp)
 
 target_link_libraries(frelement_exp fremen_timer_exp)
-target_link_libraries(fremengridlib frelement_exp)
-target_link_libraries(exploration_fremengridset fremengridlib)
-target_link_libraries(exploration_fremengridset fremengridlib)
+target_link_libraries(fremengridexplib frelement_exp)
+target_link_libraries(exploration_fremengridset fremengridexplib)
+target_link_libraries(exploration_fremengridset fremengridexplib)
 
 target_link_libraries (topological_exploration ${catkin_LIBRARIES} exploration_fremengridset)
 

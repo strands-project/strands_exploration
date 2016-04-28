@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <time.h>
-#include "CFremenGrid.h"
+#include "CFremenGridExp.h"
 
 #define MAX_LENGTH 10000
 
