@@ -51,10 +51,10 @@ int windowDuration = 180;
 int rescheduleInterval = 86400;
 
 //3D grid parameters
-float cellSize = 0.1;
-float dimX = 100;
-float dimY = 100;
-float dimZ = 40;
+double cellSize = 0.1;
+int dimX = 100;
+int dimY = 100;
+int dimZ = 100;
 float camera_range = 4.0;
 
 //standard parameters
@@ -124,7 +124,7 @@ float info;
 int integrateMeasurements = 0;
 int maxMeasurements = 1;//15;
 int measurements = maxMeasurements;
-float *dept;
+//float *dept;
 bool first_grid = true;
 bool incorporating = false;
 unsigned int timestamp;
@@ -171,11 +171,8 @@ void getTopologicalMap(const strands_navigation_msgs::TopologicalMap::ConstPtr& 
 /*returns the coordinates for a given waypoint*/
 int coordinateSearch(string name, geometry_msgs::Point* point)
 {
-    //	ROS_INFO("map size: %s", topoMap.nodes.pointset);
     for(int i = 0; topoMap.nodes.size(); i++)
     {
-        ROS_INFO("%s %s", topoMap.nodes[i].name.c_str(), name.c_str());
-
         if(topoMap.nodes[i].name.compare(name) == 0)
         {
             point->x = topoMap.nodes[i].pose.position.x;
@@ -277,11 +274,10 @@ void getCurrentNode(const std_msgs::String::ConstPtr& msg)
 }
 
 /*loads relevant nodes from the map description*/
-int getRelevantNodes()//TODO get critical waypoints and non critical waypoints
+int getRelevantNodes()//TODO -> get critical and non-critical waypoints
 {
     int result = -1;
-    uint32_t times[1];
-    unsigned char signal[1];
+
     strands_navigation_msgs::GetTaggedNodes srv;
     srv.request.tag = "Exploration";
     if (nodeListClient.call(srv))
@@ -289,21 +285,19 @@ int getRelevantNodes()//TODO get critical waypoints and non critical waypoints
         for (int i=0;i<srv.response.nodes.size();i++)
         {
             geometry_msgs::Point node_coordinates, grid_origin;
-            ROS_INFO("weird stuff happening");
             coordinateSearch(srv.response.nodes[i], &node_coordinates);
-            ROS_INFO("name: %s point: (%f, %f, %f)", srv.response.nodes[i].c_str(), node_coordinates.x, node_coordinates.y, node_coordinates.z);
 
             //grid origin calculation
             grid_origin.x = node_coordinates.x - (dimX*cellSize)/2;
             grid_origin.y = node_coordinates.y - (dimY*cellSize)/2;
-            grid_origin.z = -0.1;
+            grid_origin.z = 0.0;
 
             fremengridSet.add(srv.response.nodes[i].c_str(), grid_origin.x, grid_origin.y, grid_origin.z, dimX, dimY, dimZ, cellSize);
         }
 
         numNodes = fremengridSet.numFremenGrids;
         ROS_INFO("Number of exploration nodes: %d",numNodes);
-        for (int i=0;i<numNodes;i++) ROS_INFO("Exploration waypoint %i: %s.",i,fremengridSet.fremengrid[i]->id);
+        for (int i=0;i<numNodes;i++) ROS_INFO("FreMEnGrid ID: %i Label: %s.",i,fremengridSet.fremengrid[i]->id);
         result = numNodes;
     }
     else
@@ -314,7 +308,7 @@ int getRelevantNodes()//TODO get critical waypoints and non critical waypoints
 }
 
 /*retrieve grids from the database, updates the grids and estimates information gain*/
-void retrieveGrids(uint32_t lastTime)
+void retrieveGrids(uint32_t lastTime)//TODO -> call load service
 {
     char testTime[1000];
     vector< boost::shared_ptr<strands_exploration_msgs::FremenGrid> > results;
@@ -331,7 +325,7 @@ void retrieveGrids(uint32_t lastTime)
 }
 
 /*generates a schedule and saves it in a file*/
-int generateNewSchedule(uint32_t givenTime)//TODO save schedule in MongoDB
+int generateNewSchedule(uint32_t givenTime)//TODO -> save schedule in MongoDB
 {
     /*establish relevant time frame*/
     int numSlots = 24*3600/windowDuration;
@@ -360,7 +354,12 @@ int generateNewSchedule(uint32_t givenTime)//TODO save schedule in MongoDB
         {
             times[0] = timeSlots[s];
             coordinateSearch(fremengridSet.fremengrid[i]->id, &observationPoint);
-            entropy[0] = fremengridSet.estimateEntropy(fremengridSet.fremengrid[i]->id, observationPoint.x, observationPoint.y, observationPoint.z, camera_range, times[0]);
+        fremengridSet.recalculate(fremengridSet.fremengrid[i]->id, times[0]);
+            entropy[0] = fremengridSet.estimateEntropy(fremengridSet.fremengrid[i]->id, observationPoint.x, observationPoint.y, 1.662, camera_range, times[0]);
+
+            //if(entropy[0]  = 0.0)
+                ROS_INFO("ID: %s\t Point: %f %f %f\t Entropy: %f", fremengridSet.fremengrid[i]->id,observationPoint.x, observationPoint.y,observationPoint.z,entropy[0]);
+
             lastWheel += explorationRatio*entropy[0];
             wheel[i] = lastWheel;
         }
@@ -396,11 +395,12 @@ int generateNewSchedule(uint32_t givenTime)//TODO save schedule in MongoDB
         timeInfo = timeSlots[s];
         strftime(dummy, sizeof(dummy), "%Y-%m-%d_%H:%M:%S",localtime(&timeInfo));
         fprintf(file,"%ld %s %s\n",timeInfo,dummy,fremengridSet.fremengrid[nodes[s]]->id);
+        ROS_INFO("Schedule: %ld %s %s\n",timeInfo,dummy,fremengridSet.fremengrid[nodes[s]]->id);
     }
     fclose(file);
 }
 
-int generateSchedule(uint32_t givenTime)
+int generateSchedule(uint32_t givenTime)//TODO -> save schedule in MongoDB
 {
     char dummy[1000];
     int numSlots = 24*3600/windowDuration;
@@ -471,7 +471,7 @@ int getNextTimeSlot(int lookAhead)
         //ROS_INFO("%s",dummy);
     }
     if (currentSlot >= 0 && currentSlot < numSlots) return currentSlot;
-    ROS_ERROR("Infoterminal schedule error: attempting to get task in a non-existent time slot.");
+    ROS_ERROR("Exploration schedule error: attempting to get task in a non-existent time slot.");
     return -1;
 }
 
@@ -498,7 +498,7 @@ int createTask(int slot)
     }
 
     mongodb_store_msgs::StringPair taskArg;
-    taskArg.second = "short";
+    taskArg.second = "complete";
     strands_executive_msgs::Task task;
     task.action = "do_sweep";
     task.start_node_id = fremengridSet.fremengrid[nodes[slot]]->id;
@@ -672,7 +672,8 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
 
     //stores the depth image for easier manipultation
     float depth = msg->data[640*480+640]+256*msg->data[640*480+640+1];
-
+    float *dept;
+    dept = (float*)malloc(sizeof(float)*307200*(maxMeasurements+1));
     measurements = 0;
 
     //to filter some of the noise
@@ -681,8 +682,11 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
     if (measurements < maxMeasurements)
     {
         float di = 0;
-ROS_INFO("maxMeasurements: %d", maxMeasurements);
+
+        //ROS_INFO("maxMeasurements: %d", maxMeasurements);
         if (measurements == 0) memset(dept,0,sizeof(float)*307200*(maxMeasurements+1));
+
+
         for (int i = 0;i<307200;i++)
         {
 
@@ -699,7 +703,7 @@ ROS_INFO("maxMeasurements: %d", maxMeasurements);
         }
     }
     measurements++;
-ROS_INFO("gebsk3");
+
     if (measurements==maxMeasurements)
     {
         //ray casting auxiliary variables
@@ -770,11 +774,15 @@ ROS_INFO("gebsk3");
             }
         }
 
-        int lastInfo = fremengridSet.fremengrid[gridIndex]->obtainedInformationLast;
+        //int lastInfo = fremengridSet.fremengrid[gridIndex]->obtainedInformationLast;
         ROS_INFO("Depth image to point cloud took %i ms,",timer.getTime());
-        //        ROS_INFO("Information gain: %i,",lastInfo);
         fremengridSet.fremengrid[gridIndex]->incorporate(x,y,z,d,len,timestamp);
     }
+
+    std_msgs::ColorRGBA color_aux;
+    color_aux.g = color_aux.a = 1.0;
+    color_aux.r = color_aux.b = 0.0;
+    publishGrid(nodeName.c_str(), 0, 0.9, 1.0, 0, 0 , nodeName.c_str(), false, color_aux);
 }
 
 
@@ -796,9 +804,13 @@ int main(int argc,char* argv[])
 
     //load parameters
     n.param<std::string>("/collectionName", collectionName, "FremenGrid");
-    n.param<std::string>("/scheduleDirectory", scheduleDirectory, "/localhome/strands/schedules");//????
+    n.param<std::string>("/scheduleDirectory", scheduleDirectory, "/localhome/strands/schedules");// TODO -> save in mongoDB
     n.param("/taskPriority", taskPriority,1);
     n.param("/verbose", debug,false);
+    n.param("/resolution", cellSize, 0.1);
+    n.param("/dimX", dimX, 100);
+    n.param("/dimY", dimY, 100);
+    n.param("/dimZ", dimZ, 40);
 
 
     //initialize dynamic reconfiguration feedback
@@ -848,18 +860,19 @@ int main(int argc,char* argv[])
 
     //to subscribe the depth image and add it to the grid (ray casting)
     image_transport::ImageTransport imageTransporter(n);
-    image_transport::Subscriber image_subscriber = imageTransporter.subscribe("/local_metric_map/depth/depth_filtered", 20, imageCallback);
+    image_transport::Subscriber image_subscriber = imageTransporter.subscribe("/local_metric_map/depth/depth_filtered", 50, imageCallback);
     ros::spinOnce();
     sleep(0.5);
 
 
     //get topological map nodes tagged as Exploration
-    if (getRelevantNodes() < 0)
+    int relevant_nodes = getRelevantNodes();
+    if (relevant_nodes < 0)
     {
         ROS_ERROR("Topological navigation does not report about tagged nodes. Is it running?");
         return -1;
     }
-    if (getRelevantNodes() == 0)
+    else if (relevant_nodes == 0)
     {
         ROS_ERROR("There are no Info-Terminal relevant nodes in the topological map ");
         return -1;

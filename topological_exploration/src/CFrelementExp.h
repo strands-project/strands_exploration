@@ -1,5 +1,5 @@
-#ifndef CFRELEMENT_H
-#define CFRELEMENT_H
+#ifndef CFRELEMENTEXP_H
+#define CFRELEMENTEXP_H
 
 #include <stdio.h>
 #include <iostream>
@@ -7,7 +7,7 @@
 #include <math.h>
 #include <string.h>
 #include <stdint.h>
-#include "CTimer.h"
+#include "CTimerExp.h"
 
 #define MAX_ADAPTIVE_ORDER 5
 #define NUM_PERIODICITIES 24
