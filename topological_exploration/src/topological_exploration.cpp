@@ -60,6 +60,7 @@ float camera_range = 4.0;
 //standard parameters
 string collectionName;
 string scheduleDirectory;
+string sweep_type;
 
 //runtine parameters
 float explorationRatio = 0.5;
@@ -129,6 +130,8 @@ bool first_grid = true;
 bool incorporating = false;
 unsigned int timestamp;
 int gridIndex;
+unsigned int sweep_measurements;
+unsigned int current_measurement;
 
 string currentNode;
 
@@ -354,11 +357,11 @@ int generateNewSchedule(uint32_t givenTime)//TODO -> save schedule in MongoDB
         {
             times[0] = timeSlots[s];
             coordinateSearch(fremengridSet.fremengrid[i]->id, &observationPoint);
-        fremengridSet.recalculate(fremengridSet.fremengrid[i]->id, times[0]);
+            fremengridSet.recalculate(fremengridSet.fremengrid[i]->id, times[0]);
             entropy[0] = fremengridSet.estimateEntropy(fremengridSet.fremengrid[i]->id, observationPoint.x, observationPoint.y, 1.662, camera_range, times[0]);
 
             //if(entropy[0]  = 0.0)
-                ROS_INFO("ID: %s\t Point: %f %f %f\t Entropy: %f", fremengridSet.fremengrid[i]->id,observationPoint.x, observationPoint.y,observationPoint.z,entropy[0]);
+            //ROS_INFO("ID: %s\t Point: %f %f %f\t Entropy: %f", fremengridSet.fremengrid[i]->id,observationPoint.x, observationPoint.y,observationPoint.z,entropy[0]);
 
             lastWheel += explorationRatio*entropy[0];
             wheel[i] = lastWheel;
@@ -520,41 +523,6 @@ int createTask(int slot)
 
 }
 
-/*drops and reschedules the following task on special conditions*/
-int modifyNextTask(int slot)
-{
-    int lastNodeID = fremengridSet.find(nodeName.c_str());
-    int chargeNodeID = fremengridSet.find("ChargingPoint");
-    bool changeTaskFlag = false;
-    /*charge when low on battery*/
-    if (chargeNodeID != -1 && forceCharging){
-        nodes[slot]=chargeNodeID;
-        changeTaskFlag = true;
-        ROS_INFO("Task %i should be changed to charging.",taskIDs[slot]);
-    }
-    /*do not run away during interactions*/
-    if (lastNodeID != -1 && (timeSlots[slot] - lastInteractionTime) < interactionTimeout || info >25000)
-    {
-        nodes[slot]=lastNodeID;
-        changeTaskFlag = true;
-        ROS_INFO("Task %i should be changed to last waypoint.",taskIDs[slot]);
-    }
-    /*do not run away during interactions*/
-    if (changeTaskFlag)
-    {
-        strands_executive_msgs::CancelTask taskCanc;
-        taskCanc.request.task_id = taskIDs[slot];
-        if (taskCancel.call(taskCanc)){
-            if (taskCanc.response.cancelled){
-                ROS_INFO("Task %i cancelled, replanning.",taskIDs[slot]);
-                createTask(slot);
-            }else{
-                ROS_INFO("Scheduler refuses to cancel task %i.",taskIDs[slot]);
-            }
-        }
-    }
-}
-
 /*saves grid to database*/
 int saveGridDB(const char *name)
 {
@@ -663,8 +631,12 @@ int removeGrid(const char *name)
 void imageCallback(const sensor_msgs::ImageConstPtr& msg)
 {
 
-    //get grid index according to the waypoint
-    gridIndex = fremengridSet.find(nodeName.c_str());
+    if(current_measurement == 0)
+    {
+        //get grid index according to the waypoint
+        gridIndex = fremengridSet.find(nodeName.c_str());
+    }
+
 
     timestamp = msg->header.stamp.sec;
 
@@ -775,14 +747,19 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
         }
 
         //int lastInfo = fremengridSet.fremengrid[gridIndex]->obtainedInformationLast;
-        ROS_INFO("Depth image to point cloud took %i ms,",timer.getTime());
+        ROS_INFO("Depth image added to the grid (%d/%d)", current_measurement, sweep_measurements);
         fremengridSet.fremengrid[gridIndex]->incorporate(x,y,z,d,len,timestamp);
     }
 
-    std_msgs::ColorRGBA color_aux;
-    color_aux.g = color_aux.a = 1.0;
-    color_aux.r = color_aux.b = 0.0;
-    publishGrid(nodeName.c_str(), 0, 0.9, 1.0, 0, 0 , nodeName.c_str(), false, color_aux);
+    if(current_measurement == sweep_measurements-1)
+    {
+        std_msgs::ColorRGBA color_aux;
+        color_aux.g = color_aux.a = 1.0;
+        color_aux.r = color_aux.b = 0.0;
+        ROS_INFO("Sweep complete. Publishing and svaing 3D grid...");
+        publishGrid(nodeName.c_str(), 0, 0.9, 1.0, 0, 0 , nodeName.c_str(), false, color_aux);
+        current_measurement = 0;
+    }
 }
 
 
@@ -803,14 +780,24 @@ int main(int argc,char* argv[])
 
 
     //load parameters
-    n.param<std::string>("/collectionName", collectionName, "FremenGrid");
-    n.param<std::string>("/scheduleDirectory", scheduleDirectory, "/localhome/strands/schedules");// TODO -> save in mongoDB
-    n.param("/taskPriority", taskPriority,1);
-    n.param("/verbose", debug,false);
-    n.param("/resolution", cellSize, 0.1);
-    n.param("/dimX", dimX, 100);
-    n.param("/dimY", dimY, 100);
-    n.param("/dimZ", dimZ, 40);
+    n.param<std::string>("sweep_type", sweep_type, "complete");
+    n.param<std::string>("collectionName", collectionName, "FremenGrid");
+    n.param<std::string>("scheduleDirectory", scheduleDirectory, "/localhome/strands/schedules");// TODO -> save in mongoDB
+    n.param("taskPriority", taskPriority,1);
+    n.param("verbose", debug,false);
+    n.param("resolution", cellSize, 0.1);
+    n.param("dimX", dimX, 100);
+    n.param("dimY", dimY, 100);
+    n.param("dimZ", dimZ, 40);
+
+    if(sweep_type.compare("complete") == 0)
+        sweep_measurements = 51;
+    else if(sweep_type.compare("medium") == 0)
+        sweep_measurements = 17;
+    else if(sweep_type.compare("short") == 0)
+        sweep_measurements = 9;
+    else if(sweep_type.compare("shortest") == 0)
+        sweep_measurements = 6;
 
 
     //initialize dynamic reconfiguration feedback
@@ -832,9 +819,7 @@ int main(int argc,char* argv[])
     /*** publishers ***/
 
     //to visualize the 3D grid markers in rviz
-    grid_markers_pub = n.advertise<visualization_msgs::Marker>("/visCells", 100);
-    //to publish the amount of information obtained ater a sweep
-    information_pub  = n.advertise<std_msgs::Float64>("/obtainedInformation", 100);
+    grid_markers_pub = n.advertise<visualization_msgs::Marker>("visualize_grid", 100);
 
 
     /*** services ***/
@@ -843,10 +828,8 @@ int main(int argc,char* argv[])
     nodeListClient = n.serviceClient<strands_navigation_msgs::GetTaggedNodes>("/topological_map_manager/get_tagged_nodes");
     //to create task objects
     taskAdder = n.serviceClient<strands_executive_msgs::AddTask>("/task_executor/add_task");
-    //to remove tasks from the schedule
-    taskCancel = n.serviceClient<strands_executive_msgs::CancelTask>("/task_executor/cancel_task");
-    //to visualize 3D grid w/ dynamics
-    ros::ServiceServer visualize_grid = n.advertiseService("/view_grid", visualizeGrid);
+    //to visualize 3D grid
+    ros::ServiceServer visualize_grid = n.advertiseService("view_grid", visualizeGrid);
 
 
     /*** tf listener ***/
