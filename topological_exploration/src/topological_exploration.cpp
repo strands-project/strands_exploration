@@ -425,7 +425,8 @@ int generateSchedule(uint32_t givenTime)//TODO -> save schedule in MongoDB
     ROS_INFO("Retrieving schedule from %s",fileName);
     FILE* file = fopen(fileName,"r");
     if (file == NULL){
-        printf("Schedule file not found %s\n",fileName);
+        ROS_INFO("Schedule file not found %s\n",fileName);
+        ROS_INFO("Generating new schedule. Estimating entropies...");
         generateNewSchedule(givenTime);
         file = fopen(fileName,"r");
     }
@@ -635,6 +636,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
     {
         //get grid index according to the waypoint
         gridIndex = fremengridSet.find(nodeName.c_str());
+        ROS_INFO("Waypoint %s and grid index %i\n", nodeName.c_str(), gridIndex);
     }
 
 
