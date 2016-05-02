@@ -191,7 +191,8 @@ float CFremenGrid::estimateInformation(float sx,float sy,float sz,float range,ui
 
         //pre-calculate the grid
         int raycastSize = sizeof(int)*300*numRaycasters;
-        printf("Rays total %i raycast memory size %i\n",numRaycasters,raycastSize);
+        if(debug)
+            printf("Rays total %i raycast memory size %i\n",numRaycasters,raycastSize);
         raycasters  = (int*)malloc(raycastSize);
         int raycastIndex = 0;
         for (int i = 0;i<size;i++)
@@ -345,19 +346,19 @@ float CFremenGrid::incorporate(float *x,float *y,float *z,float *d,int size,uint
                 if (c>0&&c<numCells) aux[c] = 1;
             }*/
             //if (aux[final] != 1){
-                aux[final] = 1;
-                if (d[i]==1)
-                {
-                    dumInf = fmax(fmin(probs[final],maxProb),minProb);
-                    obtainedInformationLast += -(log2f(dumInf)-residualInformation);
-                    dumInf = fmax(fmin(predicted[final],maxProb),minProb);
-                    obtainedInformationPredicted += -(log2f(dumInf)-residualInformation);
-                    if (probs[final] < 0.5)setToOne++;
-                    frelements[final].add(times,oneVal,1);
-                    probs[final] = maxProb; //else probs[final] = minProb;
-                }
-                process[i] = 1;
-                processed++;
+            aux[final] = 1;
+            if (d[i]==1)
+            {
+                dumInf = fmax(fmin(probs[final],maxProb),minProb);
+                obtainedInformationLast += -(log2f(dumInf)-residualInformation);
+                dumInf = fmax(fmin(predicted[final],maxProb),minProb);
+                obtainedInformationPredicted += -(log2f(dumInf)-residualInformation);
+                if (probs[final] < 0.5)setToOne++;
+                frelements[final].add(times,oneVal,1);
+                probs[final] = maxProb; //else probs[final] = minProb;
+            }
+            process[i] = 1;
+            processed++;
             //}
             //}else{
             //	process[i] = 0;
@@ -374,19 +375,19 @@ float CFremenGrid::incorporate(float *x,float *y,float *z,float *d,int size,uint
             final = (int)x[i]+xDim*((int)y[i]+yDim*((int)z[i]));
             //if (aux[final] != 1){
 
-                aux[final] = 1;
-                if (d[i]==1)
-                {
-                    dumInf = fmax(fmin(probs[final],maxProb),minProb);
-                    obtainedInformationLast += -(log2f(dumInf)-residualInformation);
-                    dumInf = fmax(fmin(predicted[final],maxProb),minProb);
-                    obtainedInformationPredicted += -(log2f(dumInf)-residualInformation);
-                        frelements[final].add(times,oneVal,1);
-                    if (probs[final] < 0.5) setToOne++;
-                    probs[final] = maxProb;//(maxProb+probs[final]*3)/4; //else probs[final] = minProb;
-                }
-                process[i] = 1;
-                processed++;
+            aux[final] = 1;
+            if (d[i]==1)
+            {
+                dumInf = fmax(fmin(probs[final],maxProb),minProb);
+                obtainedInformationLast += -(log2f(dumInf)-residualInformation);
+                dumInf = fmax(fmin(predicted[final],maxProb),minProb);
+                obtainedInformationPredicted += -(log2f(dumInf)-residualInformation);
+                frelements[final].add(times,oneVal,1);
+                if (probs[final] < 0.5) setToOne++;
+                probs[final] = maxProb;//(maxProb+probs[final]*3)/4; //else probs[final] = minProb;
+            }
+            process[i] = 1;
+            processed++;
             //}
         }
     }
@@ -542,7 +543,7 @@ bool CFremenGrid::load(const char* filename)
         printf("FrOctomap %s not found, aborting load.\n",filename);
         return false;
     }
-/*	printf("Loading FrOctomap %s.\n",filename);
+    /*	printf("Loading FrOctomap %s.\n",filename);
     for (int i=0;i<numCells;i++){
          free(cellArray[i]);
     }
@@ -656,8 +657,8 @@ bool CFremenGrid::recalculate(uint32_t timestamp)
     else if (lastTimeStamp !=timestamp)
     {
         for (int i =0;i<numCells;i++){
-             predicted[i] = frelements[i].estimate(timestamp,1);
-             if (predicted[i] == 0.5) sum++;
+            predicted[i] = frelements[i].estimate(timestamp,1);
+            if (predicted[i] == 0.5) sum++;
         }
         if(debug)
             printf("Recalculating with timestamp %i %i %i %i\n",timestamp,lastTimeStamp,numCells,sum);
