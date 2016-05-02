@@ -751,13 +751,15 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
         fremengridSet.fremengrid[gridIndex]->incorporate(x,y,z,d,len,timestamp);
     }
 
+    current_measurement++;
+
     if(current_measurement == sweep_measurements-1)
     {
         std_msgs::ColorRGBA color_aux;
         color_aux.g = color_aux.a = 1.0;
         color_aux.r = color_aux.b = 0.0;
         ROS_INFO("Sweep complete. Publishing and svaing 3D grid...");
-        publishGrid(nodeName.c_str(), 0, 0.9, 1.0, 0, 0 , nodeName.c_str(), false, color_aux);
+        publishGrid(nodeName.c_str(), 0, 0.9, 1.0, 0, 1 , nodeName.c_str(), false, color_aux);
         current_measurement = 0;
     }
 }

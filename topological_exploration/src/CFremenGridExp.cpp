@@ -659,7 +659,8 @@ bool CFremenGrid::recalculate(uint32_t timestamp)
              predicted[i] = frelements[i].estimate(timestamp,1);
              if (predicted[i] == 0.5) sum++;
         }
-        printf("Recalculating with timestamp %i %i %i %i\n",timestamp,lastTimeStamp,numCells,sum);
+        if(debug)
+            printf("Recalculating with timestamp %i %i %i %i\n",timestamp,lastTimeStamp,numCells,sum);
     }
     lastTimeStamp =timestamp;
     buildLimits(predicted);
