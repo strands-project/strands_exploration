@@ -24,6 +24,8 @@
 #include <strands_exploration_msgs//FremenGrid.h>
 #include <strands_exploration_msgs/Frelement.h>
 #include <strands_exploration_msgs/SFrelement.h>
+#include <strands_exploration_msgs/LoadGrid.h>
+#include <strands_exploration_msgs/SaveGrid.h>
 #include "CFremenGridSet.h"
 #include <time.h> 
 #include "mongodb_store/message_store.h"
@@ -293,7 +295,7 @@ int getRelevantNodes()//TODO -> get critical and non-critical waypoints
             //grid origin calculation
             grid_origin.x = node_coordinates.x - (dimX*cellSize)/2;
             grid_origin.y = node_coordinates.y - (dimY*cellSize)/2;
-            grid_origin.z = 0.0;
+            grid_origin.z = -0.05;
 
             fremengridSet.add(srv.response.nodes[i].c_str(), grid_origin.x, grid_origin.y, grid_origin.z, dimX, dimY, dimZ, cellSize);
         }
@@ -525,13 +527,13 @@ int createTask(int slot)
 }
 
 /*saves grid to database*/
-int saveGridDB(const char *name)
+int saveGridDB(string name)
 {
-    int gridIndex = fremengridSet.find(name);
+    int gridIndex = fremengridSet.find(name.c_str());
 
     if(gridIndex < 0)
     {
-        ROS_ERROR("%s grid not found!", name);
+        ROS_ERROR("%s grid not found!", name.c_str());
         return -1;
     }
     else
@@ -598,7 +600,7 @@ int saveGridDB(const char *name)
         grid_msg.time = currentTime.sec;
 
         string id(messageStore->insertNamed(collectionName, grid_msg));
-        ROS_INFO("FremenGrid %s inserted with id %s", name, id.c_str());
+        ROS_INFO("FremenGrid %s inserted with id %s", name.c_str(), id.c_str());
     }
 
 }
@@ -760,9 +762,10 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
         std_msgs::ColorRGBA color_aux;
         color_aux.g = color_aux.a = 1.0;
         color_aux.r = color_aux.b = 0.0;
-        ROS_INFO("Sweep complete. Publishing and svaing 3D grid...");
+        ROS_INFO("Sweep complete. Publishing and saving 3D grid...");
         int numvoxels = publishGrid(nodeName.c_str(), 100000, 0.9, 1.0, 86400, 0, nodeName.c_str(), false, color_aux);
         ROS_INFO("%d voxels published.", numvoxels);
+        saveGridDB(nodeName);
         current_measurement = 0;
     }
     else
