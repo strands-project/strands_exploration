@@ -749,11 +749,11 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
         }
 
         //int lastInfo = fremengridSet.fremengrid[gridIndex]->obtainedInformationLast;
-        ROS_INFO("Depth image added to the grid (%d/%d)", current_measurement, sweep_measurements);
+        ROS_INFO("Depth image added to the grid (%d/%d)", current_measurement, sweep_measurements - 1);
         fremengridSet.fremengrid[gridIndex]->incorporate(x,y,z,d,len,timestamp);
     }
 
-    current_measurement++;
+
 
     if(current_measurement == sweep_measurements-1)
     {
@@ -761,9 +761,12 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
         color_aux.g = color_aux.a = 1.0;
         color_aux.r = color_aux.b = 0.0;
         ROS_INFO("Sweep complete. Publishing and svaing 3D grid...");
-        publishGrid(nodeName.c_str(), 0, 0.9, 1.0, 0, 1 , nodeName.c_str(), false, color_aux);
+        int numvoxels = publishGrid(nodeName.c_str(), 0, 0.9, 1.0, 86400, 1, nodeName.c_str(), false, color_aux);
+        ROS_INFO("%d voxels published.", numvoxels);
         current_measurement = 0;
     }
+    else
+        current_measurement++;
 }
 
 
