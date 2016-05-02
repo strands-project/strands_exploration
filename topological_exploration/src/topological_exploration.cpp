@@ -761,7 +761,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
         color_aux.g = color_aux.a = 1.0;
         color_aux.r = color_aux.b = 0.0;
         ROS_INFO("Sweep complete. Publishing and svaing 3D grid...");
-        int numvoxels = publishGrid(nodeName.c_str(), 0, 0.9, 1.0, 86400, 1, nodeName.c_str(), false, color_aux);
+        int numvoxels = publishGrid(nodeName.c_str(), 100000, 0.9, 1.0, 86400, 0, nodeName.c_str(), false, color_aux);
         ROS_INFO("%d voxels published.", numvoxels);
         current_measurement = 0;
     }
