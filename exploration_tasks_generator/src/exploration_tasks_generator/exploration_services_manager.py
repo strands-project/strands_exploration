@@ -23,15 +23,18 @@ class ExplorationServicesManager(object):
         print exploration_service_names
         exploration_service_list=[rospy.ServiceProxy(name, GetExplorationTasks) for name in exploration_service_names]
         for (name, service) in zip(exploration_service_names, exploration_service_list):
-            response=service(start_time, end_time)
-            service_name=name.split('/')[-1]
-            print service_name
-            method_name="create_tasks_for_" + service_name
-            if hasattr(self, method_name) and callable(getattr(self, method_name)):
-                method=getattr(self, method_name)
-                task_list+=method(response.task_definition, response.task_score, start_time, end_time)
-            else:
-                rospy.logwarn("No method defined to create tasks for service " + name)
+            try:
+                response=service(start_time, end_time)
+                service_name=name.split('/')[-1]
+                print service_name
+                method_name="create_tasks_for_" + service_name
+                if hasattr(self, method_name) and callable(getattr(self, method_name)):
+                    method=getattr(self, method_name)
+                    task_list+=method(response.task_definition, response.task_score, start_time, end_time)
+                else:
+                    rospy.logwarn("No method defined to create tasks for service " + name)
+            except rospy.ServiceException, e:
+                rospy.logwarn("Error calling service " + name + ". Skipping...")
         return task_list
     
         
