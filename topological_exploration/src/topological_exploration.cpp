@@ -232,6 +232,8 @@ bool visualizeGrid(strands_exploration_msgs::Visualize::Request  &req, strands_e
 {
     int numvoxels = publishGrid(req.waypoint, req.stamp, req.minProbability, req.maxProbability, req.period, req.type, req.name, req.set_color, req.color);
     ROS_INFO("%d voxels published.", numvoxels);
+    res.numcells = numvoxels;
+    return true;
 }
 
 bool explorationRoutine(strands_exploration_msgs::GetExplorationTasks::Request &req, strands_exploration_msgs::GetExplorationTasks::Response &res)
@@ -270,6 +272,7 @@ bool explorationRoutine(strands_exploration_msgs::GetExplorationTasks::Request &
 void getCurrentNode(const std_msgs::String::ConstPtr& msg)
 {
     closestNode = msg->data;
+    ROS_INFO("Closest Exploration node switched to %s.",nodeName.c_str());
     if (fremengridSet.find(msg->data.c_str())>-1){
         nodeName = msg->data;
         if (debug) ROS_INFO("Closest Exploration node switched to %s.",nodeName.c_str());
@@ -826,6 +829,7 @@ int main(int argc,char* argv[])
     ros::Time currentTime = ros::Time::now();
     generateSchedule(currentTime.sec);
 
+    ros::spinOnce();
     maxTaskNumber = 1;
     while (ros::ok())
     {
