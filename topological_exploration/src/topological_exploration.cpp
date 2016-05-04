@@ -565,11 +565,11 @@ int saveGrid(string name)
         char fileNameee[1000];
         strftime(timeStr, sizeof(timeStr), "%Y-%m-%d_%H:%M",localtime(&timeNow));
         sprintf(fileName,"%s/%s-%s.3dmap", gridsDirectory.c_str(), name.c_str(),timeStr);
-        ROS_INFO("%s", fileName);
+        //ROS_INFO("%s", fileName);
         fremengridSet.fremengrid[gridIndex]->saveSmart(fileName, false, 0);
 
         sprintf(fileNameee,"%s/%s.txt", gridsDirectory.c_str(), name.c_str());
-        FILE* file = fopen(fileName,"w+");
+        FILE* file = fopen(fileNameee,"w+");
         if (file == NULL)
             ROS_ERROR("Could not open waypoint file %s.",fileNameee);
 
@@ -794,9 +794,9 @@ int main(int argc,char* argv[])
     //to get relevant nodes
     nodeListClient = n.serviceClient<strands_navigation_msgs::GetTaggedNodes>("/topological_map_manager/get_tagged_nodes");
     //to create task objects
-    taskAdder = n.serviceClient<strands_executive_msgs::AddTask>("/task_executor/add_task");
+//    taskAdder = n.serviceClient<strands_executive_msgs::AddTask>("/task_executor/add_task");
     //save grid
-    save_service = n.serviceClient<strands_exploration_msgs::SaveGrid>("/topological_exploration/save_grid");
+//    save_service = n.serviceClient<strands_exploration_msgs::SaveGrid>("/topological_exploration/save_grid");
 
 
 
