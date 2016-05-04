@@ -272,9 +272,10 @@ bool explorationRoutine(strands_exploration_msgs::GetExplorationTasks::Request &
 void getCurrentNode(const std_msgs::String::ConstPtr& msg)
 {
     closestNode = msg->data;
-    ROS_INFO("Closest Exploration node switched to %s.",nodeName.c_str());
+
     if (fremengridSet.find(msg->data.c_str())>-1){
         nodeName = msg->data;
+        ROS_INFO("Closest Exploration node switched to %s.",nodeName.c_str());
         if (debug) ROS_INFO("Closest Exploration node switched to %s.",nodeName.c_str());
     }else{
         if (debug) ROS_INFO("Closest node %s - however, it's not an Exploration node.",msg->data.c_str());
