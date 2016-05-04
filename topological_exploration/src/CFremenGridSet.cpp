@@ -104,14 +104,18 @@ bool CFremenGridSet::print(bool verbosityLevel)
     for (int i = 0;i<numFremenGrids;i++) fremengrid[i]->print(verbosityLevel);
 }
 
-bool CFremenGridSet::load(const char* name)
+bool CFremenGridSet::load(const char* name, const char* filename)
 {
 }
 
-bool CFremenGridSet::save(const char* name)
+bool CFremenGridSet::save(const char* name, const char* filename)
 {
-    FILE* file = fopen(name,"w+");
-    fwrite(&numFremenGrids,sizeof(int),1,file);
-    for (int i = 0;i<numFremenGrids;i++) fremengrid[i]->saveSmart(name);
-    fclose(file);
+
+    if (find(name) < 0)
+        return false;
+    else
+    {
+        active->saveSmart(filename, false, 0);
+        return true;
+    }
 }
