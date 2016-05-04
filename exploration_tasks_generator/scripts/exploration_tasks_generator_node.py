@@ -12,10 +12,12 @@ class TaskGenerator(object):
         self.services_manager=ExplorationServicesManager()
         self.timer=rospy.Timer(rospy.Duration(60*20), self.add_tasks_to_schedule)
         self.add_task_srv=rospy.ServiceProxy('/task_executor/add_task', AddTask)
+        rospy.sleep(5)
+        self.add_tasks_to_schedule(None)
         
     
     def add_tasks_to_schedule(self, timer_event):
-        task_list=generator.services_manager.generate_tasks(rospy.get_rostime()+rospy.Duration(2),rospy.get_rostime()+rospy.Duration(30*60))
+        task_list=self.services_manager.generate_tasks(rospy.get_rostime()+rospy.Duration(60*2),rospy.get_rostime()+rospy.Duration(60*22))
         random.shuffle(task_list)
         for task in task_list:
             self.add_task_srv(task.task_def)
