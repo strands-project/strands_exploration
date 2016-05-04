@@ -269,6 +269,12 @@ bool explorationRoutine(strands_exploration_msgs::GetExplorationTasks::Request &
     unsigned int request_interval = req.end_time.sec - req.start_time.sec;
     unsigned int request_slots = request_interval/windowDuration;
 
+    if(request_interval < 0)
+    {
+        ROS_ERROR("Invalid time interval!");
+        return(false);
+    }
+
     ROS_INFO("Exploration routine: start time %d duration %d time slots %d", req.start_time.sec,request_interval,request_slots);
 
     int initial_slot = (req.start_time.sec-timeSlots[0])/windowDuration;
@@ -575,9 +581,9 @@ int saveGridDB(string name)
         //Waypoint name
         grid_msg.waypoint = name;
         //Grid dimensions:
-        grid_msg.dimensions[0] = fremengridSet.fremengrid[gridIndex]->xDim;
-        grid_msg.dimensions[1] = fremengridSet.fremengrid[gridIndex]->yDim;
-        grid_msg.dimensions[2] = fremengridSet.fremengrid[gridIndex]->zDim;
+        grid_msg.dimensions.x = fremengridSet.fremengrid[gridIndex]->xDim;
+        grid_msg.dimensions.y = fremengridSet.fremengrid[gridIndex]->yDim;
+        grid_msg.dimensions.z = fremengridSet.fremengrid[gridIndex]->zDim;
         //Grid origin
         grid_msg.origin.x = fremengridSet.fremengrid[gridIndex]->oX;
         grid_msg.origin.y = fremengridSet.fremengrid[gridIndex]->oY;
