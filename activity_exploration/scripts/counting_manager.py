@@ -34,7 +34,7 @@ class PeopleCountingManager(object):
         rospy.loginfo("Region ids and their nearest waypoints: %s" % str(self.region_wps))
         rospy.sleep(0.1)
         rospy.loginfo("Create a service %s/get_waypoints..." % name)
-        self.service = rospy.Service(name+'/get_waypoints', GetExplorationTasks, self._srv_cb)
+        self.service = rospy.Service('/exploration_services/activity_exp_srv', GetExplorationTasks, self._srv_cb)
         rospy.sleep(0.1)
 
     def spin(self):
