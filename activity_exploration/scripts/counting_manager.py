@@ -26,9 +26,8 @@ class PeopleCountingManager(object):
         self.poisson_proc.load_from_db()
         self.poisson_consent = PoissonWrapper(
             rospy.get_param("~consent_topic", "/skeleton_data/consent_ret"),
-            # "data", "nothing", window=time_window*3, increment=time_increment,
-            # periodic_cycle=periodic_cycle/7
-            String, "data", "nothing", 2, 1, 3
+            String, "data", "nothing", time_window*3, time_increment,
+            periodic_cycle/7
         )
         rospy.sleep(0.1)
         self.topo_map = None
