@@ -558,17 +558,18 @@ int saveGrid(string name)
         time(&timeNow);
         char timeStr[100];
         char fileName[1000];
+        char fileNameee[1000];
         strftime(timeStr, sizeof(timeStr), "%Y-%m-%d_%H:%M",localtime(&timeNow));
         sprintf(fileName,"%s/%s-%s.3dmap", gridsDirectory.c_str(), name.c_str(),timeStr);
         ROS_INFO("%s", fileName);
         fremengridSet.fremengrid[gridIndex]->saveSmart(fileName, false, 0);
 
-        sprintf(fileName,"%s/%s.txt", gridsDirectory.c_str(), name.c_str());
+        sprintf(fileNameee,"%s/%s.txt", gridsDirectory.c_str(), name.c_str());
         FILE* file = fopen(fileName,"w+");
         if (file == NULL)
-            ROS_ERROR("Could not open waypoint file %s.",fileName);
+            ROS_ERROR("Could not open waypoint file %s.",fileNameee);
 
-        fprintf(file,"%s %s\n",name.c_str(), timeStr);
+        fprintf(file,"%s %s\n",name.c_str(), fileName);
         fclose(file);
 
     }
@@ -597,7 +598,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
 
     timestamp = msg->header.stamp.sec;
 
-    ROS_INFO("Add depth called at Waypoint %s and grid index %i\n", nodeName.c_str(), gridIndex);
+    ROS_INFO("Add depth called at Waypoint %s and grid index %i.", nodeName.c_str(), gridIndex);
 
     //stores the depth image for easier manipultation
     float depth = msg->data[640*480+640]+256*msg->data[640*480+640+1];
