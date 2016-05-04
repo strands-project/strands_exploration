@@ -59,10 +59,10 @@ public:
     bool print(bool verbosityLevel);
 
     /*load the model from a file*/
-    bool load(const char* name);
+    bool load(const char* name, const char* filename);
 
     /*save the model to a file*/
-    bool save(const char* name);
+    bool save(const char* name, const char* filename);
 
     int find(const char *name);
 
