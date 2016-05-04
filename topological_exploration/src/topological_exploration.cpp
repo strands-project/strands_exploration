@@ -472,7 +472,7 @@ int generateSchedule(uint32_t givenTime)//TODO -> save schedule in MongoDB
         timeInfo = slot;
         node_entropies[s] = norm_entropy;
         strftime(testTime, sizeof(testTime), "%Y-%m-%d_%H:%M:%S",localtime(&timeInfo));
-        if (checkReturn != 3) 			ROS_ERROR("Exploration schedule file %s is corrupt at line %i (wrong number of entries %i)!",dummy,s,checkReturn);
+        if (checkReturn != 4) 			ROS_ERROR("Exploration schedule file %s is corrupt at line %i (wrong number of entries %i)!",dummy,s,checkReturn);
         else if (slot != timeSlots[s]) 		ROS_ERROR("Exploration schedule file %s is corrupt at line %i (ROS time mismatch)!",dummy,s);
         else if (strcmp(testTime,dummy)!=0)	ROS_ERROR("Exploration schedule file %s is corrupt at line %i (time in seconds does not match string time)!",dummy,s);
         else {
