@@ -496,8 +496,9 @@ float CFremenGrid::incorporate(float *x,float *y,float *z,float *d,int size,uint
             calculate += timer.getTime();
         }
     }
+    printf("Cells: set to 0: %i. Set to 1: %i.\n",setToZero,setToOne);
     if(debug){
-        printf("Cells: set to 0: %i. Set to 1: %i.\n",setToZero,setToOne);
+        //printf("Cells: set to 0: %i. Set to 1: %i.\n",setToZero,setToOne);
         printf("preparation %i ms and update of %i cells took %i ms.\n",prepare,cells,calculate);
     }
 

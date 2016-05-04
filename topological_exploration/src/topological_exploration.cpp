@@ -186,7 +186,7 @@ int publishGrid(string waypoint, unsigned int stamp, float minP, float maxP, flo
     float minZ = fremengridSet.fremengrid[id]->oZ;
     float maxX = minX+fremengridSet.fremengrid[id]->xDim*resolution-3*resolution/4;
     float maxY = minY+fremengridSet.fremengrid[id]->yDim*resolution-3*resolution/4;
-    float maxZ = minZ+minY+fremengridSet.fremengrid[id]->zDim*resolution-3*resolution/4;//2.1
+    float maxZ = 4.0;
     int cnt = 0;
     int cells = 0;
     float estimate;
@@ -602,7 +602,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
 
     timestamp = msg->header.stamp.sec;
 
-    ROS_INFO("Add depth called at Waypoint %s and grid index %i.", nodeName.c_str(), gridIndex);
+    ROS_INFO("Add depth called at %s and grid index %i.", nodeName.c_str(), gridIndex);
 
     //stores the depth image for easier manipultation
     float depth = msg->data[640*480+640]+256*msg->data[640*480+640+1];
@@ -707,9 +707,11 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
             }
         }
 
-        //int lastInfo = fremengridSet.fremengrid[gridIndex]->obtainedInformationLast;
+        int lastInfo = fremengridSet.fremengrid[gridIndex]->obtainedInformationLast;
         ROS_INFO("Depth image added to the grid (%d/%d)", current_measurement, sweep_measurements - 1);
         fremengridSet.fremengrid[gridIndex]->incorporate(x,y,z,d,len,timestamp);
+        int newInfo = fremengridSet.fremengrid[gridIndex]->obtainedInformationLast;
+        ROS_INFO("last: %d new: %d", lastInfo, newInfo);
     }
 
 
