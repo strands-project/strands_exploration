@@ -1,0 +1,20 @@
+<launch>
+    <arg name="soma_config"/>
+
+    <arg name="machine" default="localhost" />
+    <arg name="user" default="" />
+    <machine name="$(arg machine)" address="$(arg machine)" env-loader="$(optenv ROS_ENV_LOADER )" user="$(arg user)" default="true"/>
+
+    <node pkg="exploration_tasks_generator" type="exploration_tasks_generator_node.py" name="exploration_tasks_generator_node" output="screen">
+    </node>
+    
+    <node pkg="exploration_tasks_generator" type="fake_edge_exploration.py" name="fake_edge_exploration" output="screen">
+    </node>
+    
+    <node pkg="exploration_tasks_generator" type="fake_fremen_grid_exploration.py" name="fake_fremen_grid_exploration" output="screen">
+    </node>
+    
+    <include file="$(find activity_exploration)/launch/activity_exploration.launch">
+        <arg name="soma_config" value="$(arg soma_config)"/>
+    </include>
+</launch>
