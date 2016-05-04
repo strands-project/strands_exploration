@@ -1,51 +1,47 @@
 #include <stdlib.h>
-#include "ros/ros.h"
-#include <mongodb_store/message_store.h>
+#include <sstream>
+#include <cassert>
+#include <time.h>
+#include <ros/ros.h>
 #include <tf/tf.h>
 #include <dynamic_reconfigure/server.h>
 #include <topological_exploration/topological_explorationConfig.h>
 #include <strands_navigation_msgs/NavStatistics.h>
 #include <strands_navigation_msgs/TopologicalMap.h>
 #include <strands_navigation_msgs/TopologicalNode.h>
-#include <strands_executive_msgs/AddTask.h>
-#include <mongodb_store_msgs/StringPair.h>
-#include <std_msgs/Empty.h>
-#include <geometry_msgs/PoseStamped.h>
 #include <strands_navigation_msgs/GetTaggedNodes.h>
+#include <strands_executive_msgs/AddTask.h>
 #include <std_srvs/Empty.h>
 #include <std_msgs/String.h>
 #include <std_msgs/Int32.h>
-#include <visualization_msgs/MarkerArray.h>
+#include <std_msgs/Empty.h>
 #include <std_msgs/ColorRGBA.h>
-#include <scitos_msgs/BatteryState.h>
-#include <strands_exploration_msgs//FremenGrid.h>
-#include <strands_exploration_msgs/Frelement.h>
-#include <strands_exploration_msgs/SFrelement.h>
-#include <strands_exploration_msgs/LoadGrid.h>
-#include <strands_exploration_msgs/SaveGrid.h>
-#include "CFremenGridSet.h"
-#include <time.h> 
+#include <std_msgs/Float64.h>
 #include <geometry_msgs/Pose.h>
-#include <sstream>
-#include <cassert>
+#include <visualization_msgs/MarkerArray.h>
+#include <scitos_msgs/BatteryState.h>
+#include <scitos_ptu/PanTiltActionFeedback.h>
 #include <image_transport/image_transport.h>
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/Image.h>
 #include <tf/transform_listener.h>
+#include <mongodb_store/message_store.h>
+#include <mongodb_store_msgs/StringPair.h>
+#include <strands_exploration_msgs/FremenGrid.h>
+#include <strands_exploration_msgs/Frelement.h>
+#include <strands_exploration_msgs/SFrelement.h>
+#include <strands_exploration_msgs/LoadGrid.h>
+#include <strands_exploration_msgs/SaveGrid.h>
 #include <strands_exploration_msgs/AddView.h>
 #include <strands_exploration_msgs/Visualize.h>
-#include <std_msgs/Float64.h>
-#include <scitos_ptu/PanTiltActionFeedback.h>
 #include <strands_exploration_msgs/GetExplorationTasks.h>
+#include "CFremenGridSet.h"
 
 
-
-
-using namespace mongodb_store;
 using namespace std;
 
 //FIXED parameters
-int windowDuration = 1200;//180;
+int windowDuration = 1200;
 int rescheduleInterval = 86400;
 
 //3D grid parameters
@@ -61,35 +57,24 @@ string scheduleDirectory;
 string sweep_type;
 
 //runtine parameters
-float explorationRatio = 0.15;
-int8_t   minimalBatteryLevel = 10;
-int32_t   minimalBatteryLevelTime = 0;
-int interactionTimeout = 30;
+float explorationRatio = 1.0;
 int maxTaskNumber = 1;
-int taskDuration = 60;//180;
-int taskPriority = 1;	
+int taskDuration = 60;
+int taskPriority = 50;
 bool debug = true;
 int taskStartDelay = 5;
 int rescheduleCheckTime = 5;
-float entropyThreshold = 25000;
 
 //ROS communication
-MessageStoreProxy *messageStore;
-ros::Subscriber robotPoseSub;
+
 ros::Subscriber currentNodeSub;
-ros::Subscriber interfaceSub; 
-ros::Subscriber batterySub;
-ros::Subscriber infoTaskSub;
-ros::Subscriber guiSub;
 ros::Subscriber mapSub;
-ros::Subscriber ptu_state_sub;
-ros::Subscriber node_sub;
+ros::Publisher  grid_markers_pub;
 ros::ServiceClient nodeListClient;
 ros::ServiceClient taskAdder;
 ros::ServiceClient load_service;
 ros::ServiceClient save_service;
-ros::Publisher  grid_markers_pub;
-ros::Publisher information_pub;
+
 
 
 //Fremen grid component
@@ -103,8 +88,6 @@ int currentTimeSlot = -1;
 int numCurrentTasks = 0; 
 string nodeName = "ChargingPoint";
 string closestNode = "ChargingPoint";
-int32_t lastInteractionTime = -1;
-bool forceCharging = false;
 int timeOffset = 0;
 
 //times and nodes of schedule
@@ -115,24 +98,18 @@ float max_entropy;
 int taskIDs[10000];
 int numNodes = 0;
 
-float info;
-//unsigned int info_index = 0;
 
 //Ray casting parameters
 int integrateMeasurements = 0;
-int maxMeasurements = 1;//15;
+int maxMeasurements = 1;
 int measurements = maxMeasurements;
-//float *dept;
 bool first_grid = true;
-bool incorporating = false;
 unsigned int timestamp;
 int gridIndex;
 unsigned int sweep_measurements;
 unsigned int current_measurement;
 
 std::vector<std::string> critical_nodes, exploration_nodes;
-//std::vector<std::string> exploration_nodes;
-
 string currentNode;
 
 tf::TransformListener *tf_listener;
@@ -145,24 +122,14 @@ uint32_t getMidnightTime(uint32_t givenTime)
 /*parameter reconfiguration*/
 void reconfigureCallback(topological_exploration::topological_explorationConfig &config, uint32_t level) 
 {
-    ROS_INFO("Reconfigure Request: %lf %d %d %d %d", config.explorationRatio, config.minimalBatteryLevel, config.interactionTimeout, config.maxTaskNumber, config.taskDuration);
+    ROS_INFO("Reconfigure Request: %lf %d %d", config.explorationRatio, config.maxTaskNumber, config.taskDuration);
     explorationRatio = config.explorationRatio;
-    minimalBatteryLevel = config.minimalBatteryLevel;
-    interactionTimeout = config.interactionTimeout;
     maxTaskNumber = config.maxTaskNumber;
     taskDuration = config.taskDuration;
     taskPriority = config.taskPriority;
     debug = config.verbose;
     taskStartDelay = config.taskStartDelay;
     rescheduleCheckTime = config.rescheduleCheckTime;
-    entropyThreshold = config.entropyThreshold;
-}
-
-/*listen to battery and set forced charging if necessary*/
-void batteryCallBack(const scitos_msgs::BatteryState &msg)
-{
-    ROS_DEBUG("SpatioTemporal Exploration: battery level %i %i",msg.lifePercent,minimalBatteryLevel);
-    if (minimalBatteryLevel > msg.lifePercent) forceCharging = true; else forceCharging = false;
 }
 
 /*gets topological map*/
@@ -347,8 +314,8 @@ int getRelevantNodes(string tag, std::vector<std::string>* exploration_nodes)
 void retrieveGrids(uint32_t lastTime)//TODO -> call load service
 {
     char testTime[1000];
-    vector< boost::shared_ptr<strands_exploration_msgs::FremenGrid> > results;
-    messageStore->query<strands_exploration_msgs::FremenGrid>(results);
+//    vector< boost::shared_ptr<strands_exploration_msgs::FremenGrid> > results;
+//    messageStore->query<strands_exploration_msgs::FremenGrid>(results);
     //    BOOST_FOREACH( boost::shared_ptr<topological_exploration::FremenGrid> p,  results)
     //    {
     //        time_t timeInfo = p->time;
@@ -439,7 +406,7 @@ int generateNewSchedule(uint32_t givenTime)//TODO -> save schedule in MongoDB
     fclose(file);
 }
 
-int generateSchedule(uint32_t givenTime)//TODO -> save schedule in MongoDB
+int generateSchedule(uint32_t givenTime)
 {
     char dummy[1000];
     int numSlots = 24*3600/windowDuration;
@@ -606,7 +573,7 @@ int saveGridDB(string name)
         for(int i = 0; i < grid_msg.numcells; i++)
         {
             frk = fremengridSet.fremengrid[gridIndex]->frelements[i].frk;
-            //ROS_INFO("Cell (%d/%d) Freq: %d", i, grid_msg.numcells - 1, frk);
+            ROS_INFO("Cell (%d/%d) Freq: %d Measurements: %d", i, (int) grid_msg.numcells - 1, frk, (int) frelement_msg.measurements);
             frelement_msg.gain = fremengridSet.fremengrid[gridIndex]->frelements[i].gain;
             frelement_msg.measurements = fremengridSet.fremengrid[gridIndex]->frelements[i].measurements;
             frelement_msg.first_time = fremengridSet.fremengrid[gridIndex]->frelements[i].firstTime;
@@ -634,16 +601,15 @@ int saveGridDB(string name)
 
 
         ros::Time currentTime = ros::Time::now();
-        lastInteractionTime = currentTime.sec;
         grid_msg.time = currentTime.sec;
 
         strands_exploration_msgs::SaveGrid save_req;
         save_req.request.grid = grid_msg;
 
-        if(save_service.call(save_req))
-            ROS_INFO("FremenGrid %s inserted with id %i", name.c_str(), gridIndex);
-        else
-            ROS_ERROR("Failed to save 3D grid.");
+//        if(save_service.call(save_req))
+//            ROS_INFO("FremenGrid %s inserted with id %i", name.c_str(), gridIndex);
+//        else
+//            ROS_ERROR("Failed to save 3D grid.");
     }
 
 }
@@ -740,7 +706,6 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
         }
 
         //incorporate depth image
-        //incorporating = true;
         CTimer timer;
         timer.reset();
         timer.start();
@@ -789,7 +754,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
         color_aux.g = color_aux.a = 1.0;
         color_aux.r = color_aux.b = 0.0;
         ROS_INFO("Sweep complete. Publishing and saving 3D grid...");
-        int numvoxels = publishGrid(nodeName.c_str(), 100000, 0.9, 1.0, 86400, 0, nodeName.c_str(), false, color_aux);
+        int numvoxels = publishGrid(nodeName.c_str(), 0, 0.9, 1.0, 86400, 0, nodeName.c_str(), false, color_aux);
         ROS_INFO("%d voxels published.", numvoxels);
         saveGridDB(nodeName);
         current_measurement = 0;
@@ -810,10 +775,6 @@ int main(int argc,char* argv[])
     //initialize ROS
     ros::init(argc, argv, "spatiotemporal_exploration");
     ros::NodeHandle n("~");
-
-    //initialize datacentre
-    messageStore = new MessageStoreProxy(n,"message_store");
-
 
     //load parameters
     n.param<std::string>("sweep_type", sweep_type, "complete");
@@ -843,44 +804,38 @@ int main(int argc,char* argv[])
     server.setCallback(dynSer);
 
     /*** subscribers ***/
-
     //to get the current node
     currentNodeSub = n.subscribe("/closest_node", 1, getCurrentNode);
     //to get the list of nodes
     mapSub = n.subscribe("/topological_map", 1, getTopologicalMap);
-    //to determine if charging is required
-    batterySub = n.subscribe("battery_state", 1, batteryCallBack);
 
 
     /*** publishers ***/
-
     //to visualize the 3D grid markers in rviz
     grid_markers_pub = n.advertise<visualization_msgs::Marker>("visualize_grid", 100);
 
 
     /*** services ***/
-
     //to visualize 3D grid
     ros::ServiceServer visualize_grid = n.advertiseService("view_grid", visualizeGrid);
+    //exploration routine
+    ros::ServiceServer routine_service = n.advertiseService("/exploration_taks_services/edge_exp_srv", explorationRoutine);
     //to get relevant nodes
     nodeListClient = n.serviceClient<strands_navigation_msgs::GetTaggedNodes>("/topological_map_manager/get_tagged_nodes");
     //to create task objects
     taskAdder = n.serviceClient<strands_executive_msgs::AddTask>("/task_executor/add_task");
     //save grid
     save_service = n.serviceClient<strands_exploration_msgs::SaveGrid>("/topological_exploration/save_grid");
-    //exploration routine
-    ros::ServiceServer routine_service = n.advertiseService("/edge_exp_srv", explorationRoutine);
+
 
 
     /*** tf listener ***/
-
     //to convert depth image from optical frame to map frame
     tf_listener = new tf::TransformListener();
     ros::Time now = ros::Time(0);
     tf_listener->waitForTransform("/head_xtion_depth_optical_frame","/map",now, ros::Duration(10.0));
 
     /*** image transport ***/
-
     //to subscribe the depth image and add it to the grid (ray casting)
     image_transport::ImageTransport imageTransporter(n);
     image_transport::Subscriber image_subscriber = imageTransporter.subscribe("/local_metric_map/depth/depth_filtered", 50, imageCallback);
@@ -889,11 +844,11 @@ int main(int argc,char* argv[])
 
 
 
-    //get topological map nodes tagged as Exploration
+    //get critical and non critical nodes
     int num_critical_nodes = getRelevantNodes("ExplorationGround", &critical_nodes);
     int num_exploration_nodes = getRelevantNodes("Exploration", &exploration_nodes);
 
-    if (num_critical_nodes < 0 || num_exploration_nodes < 0)
+    if (num_critical_nodes < 0)
     {
         ROS_ERROR("Topological navigation does not report about tagged nodes. Is it running?");
         return -1;
