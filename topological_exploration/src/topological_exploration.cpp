@@ -311,24 +311,24 @@ int getRelevantNodes(string tag, std::vector<std::string>* exploration_nodes)
     srv.request.tag = tag;
     if (nodeListClient.call(srv))
     {
-        for (int i = numNodes;i<srv.response.nodes.size();i++)
+        for (int i = 0;i<srv.response.nodes.size();i++)
         {
-            exploration_nodes->push_back(srv.response.nodes[i - numNodes]);
+            exploration_nodes->push_back(srv.response.nodes[i]);
             geometry_msgs::Point node_coordinates, grid_origin;
-            coordinateSearch(srv.response.nodes[i - numNodes], &node_coordinates);
+            coordinateSearch(srv.response.nodes[i], &node_coordinates);
 
             //grid origin calculation
             grid_origin.x = node_coordinates.x - (dimX*cellSize)/2;
             grid_origin.y = node_coordinates.y - (dimY*cellSize)/2;
             grid_origin.z = -0.05;
 
-            fremengridSet.add(srv.response.nodes[i - numNodes].c_str(), grid_origin.x, grid_origin.y, grid_origin.z, dimX, dimY, dimZ, cellSize);
+            fremengridSet.add(srv.response.nodes[i].c_str(), grid_origin.x, grid_origin.y, grid_origin.z, dimX, dimY, dimZ, cellSize);
         }
 
         numNodes = fremengridSet.numFremenGrids;
-        ROS_INFO("Found %d nodes with tag %s",numNodes, tag.c_str());
-        for (int i=0;i<numNodes;i++) ROS_INFO("FreMEnGrid ID: %i Label: %s.",i - numNodes,fremengridSet.fremengrid[i - numNodes]->id);
-        result = numNodes;
+        ROS_INFO("Found %d nodes with tag %s", (int) srv.response.nodes.size(), tag.c_str());
+        for (int i= numNodes - srv.response.nodes.size();i<numNodes;i++) ROS_INFO("FreMEnGrid ID: %i Label: %s.",i,fremengridSet.fremengrid[i]->id);
+        result = srv.response.nodes.size();
     }
     else
     {
