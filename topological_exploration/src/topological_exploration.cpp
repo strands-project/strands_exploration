@@ -774,8 +774,7 @@ int main(int argc,char* argv[])
     server.setCallback(dynSer);
 
     /*** subscribers ***/
-    //to get the current node
-    currentNodeSub = n.subscribe("/closest_node", 1, getCurrentNode);
+
     //to get the list of nodes
     mapSub = n.subscribe("/topological_map", 1, getTopologicalMap);
 
@@ -825,6 +824,9 @@ int main(int argc,char* argv[])
     }
 
     retrieveGrids();
+
+    //to get the current node
+    currentNodeSub = n.subscribe("/closest_node", 1, getCurrentNode);
 
     //generate schedule
     ros::Time currentTime = ros::Time::now();
