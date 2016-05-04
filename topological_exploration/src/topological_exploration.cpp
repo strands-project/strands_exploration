@@ -598,6 +598,7 @@ int saveGridDB(string name)
 
         /*Frelement*/
         strands_exploration_msgs::Frelement frelement_msg;
+        strands_exploration_msgs::SFrelement sfrl;
 
         int frk;
 
@@ -605,7 +606,7 @@ int saveGridDB(string name)
         for(int i = 0; i < grid_msg.numcells; i++)
         {
             frk = fremengridSet.fremengrid[gridIndex]->frelements[i].frk;
-
+            //ROS_INFO("Cell (%d/%d) Freq: %d", i, grid_msg.numcells - 1, frk);
             frelement_msg.gain = fremengridSet.fremengrid[gridIndex]->frelements[i].gain;
             frelement_msg.measurements = fremengridSet.fremengrid[gridIndex]->frelements[i].measurements;
             frelement_msg.first_time = fremengridSet.fremengrid[gridIndex]->frelements[i].firstTime;
@@ -619,10 +620,11 @@ int saveGridDB(string name)
 
                 for(int j = 0; j < frelement_msg.frequencies; j++)
                 {
-                    frelement_msg.elements[i].rstates = fremengridSet.fremengrid[gridIndex]->frelements[i].allFrelements[j].realStates;
-                    frelement_msg.elements[i].istates = fremengridSet.fremengrid[gridIndex]->frelements[i].allFrelements[j].imagStates;
-                    frelement_msg.elements[i].rbalance = fremengridSet.fremengrid[gridIndex]->frelements[i].allFrelements[j].realBalance;
-                    frelement_msg.elements[i].ibalance = fremengridSet.fremengrid[gridIndex]->frelements[i].allFrelements[j].imagBalance;
+                    sfrl.rstates = fremengridSet.fremengrid[gridIndex]->frelements[i].allFrelements[j].realStates;
+                    sfrl.istates = fremengridSet.fremengrid[gridIndex]->frelements[i].allFrelements[j].imagStates;
+                    sfrl.rbalance = fremengridSet.fremengrid[gridIndex]->frelements[i].allFrelements[j].realBalance;
+                    sfrl.ibalance = fremengridSet.fremengrid[gridIndex]->frelements[i].allFrelements[j].imagBalance;
+                    frelement_msg.elements.push_back(sfrl);
                 }
             }
 
