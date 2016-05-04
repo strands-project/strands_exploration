@@ -269,6 +269,8 @@ bool explorationRoutine(strands_exploration_msgs::GetExplorationTasks::Request &
     unsigned int request_interval = req.end_time.sec - req.start_time.sec;
     unsigned int request_slots = request_interval/windowDuration;
 
+    ROS_INFO("Exploration routine: start time %d duration %d time slots %d", req.start_time.sec,request_interval,request_slots);
+
     int initial_slot = (req.start_time.sec-timeSlots[0])/windowDuration;
 
     int numSlots = 24*3600/windowDuration;
@@ -279,7 +281,10 @@ bool explorationRoutine(strands_exploration_msgs::GetExplorationTasks::Request &
         {
             res.task_definition.push_back(fremengridSet.fremengrid[nodes[initial_slot + i]]->id);
             res.task_score.push_back(node_entropies[initial_slot + i]);
+            ROS_INFO("Exploration routine: node %s score %f ", fremengridSet.fremengrid[nodes[initial_slot + i]]->id, node_entropies[initial_slot + i]);
         }
+        else
+            break;
     }
 
     return true;
