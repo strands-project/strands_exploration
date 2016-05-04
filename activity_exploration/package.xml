@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<package>
+  <name>activity_exploration</name>
+  <version>0.0.1</version>
+  <description>The activity_exploration package</description>
+
+  <maintainer email="fxj345@cs.bham.ac.uk">Ferdian Jovan</maintainer>
+
+  <license>MIT</license>
+
+  <author email="fxj345@cs.bham.ac.uk">Ferdian Jovan</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>mongodb_store</build_depend>
+  <build_depend>rospy</build_depend>
+  <build_depend>soma_manager</build_depend>
+  <build_depend>tf</build_depend>
+  <build_depend>soma_map_manager</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>visualization_msgs</build_depend>
+  <build_depend>human_trajectory</build_depend>
+  <build_depend>strands_navigation_msgs</build_depend>
+  <build_depend>strands_exploration_msgs</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <run_depend>mongodb_store</run_depend>
+  <run_depend>rospy</run_depend>
+  <run_depend>soma_manager</run_depend>
+  <run_depend>tf</run_depend>
+  <run_depend>soma_map_manager</run_depend>
+  <run_depend>geometry_msgs</run_depend>
+  <run_depend>visualization_msgs</run_depend>
+  <run_depend>human_trajectory</run_depend>
+  <run_depend>strands_navigation_msgs</run_depend>
+  <run_depend>strands_exploration_msgs</run_depend>
+  <run_depend>std_msgs</run_depend>
+
+  <export>
+  </export>
+</package>
