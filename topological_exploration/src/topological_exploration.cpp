@@ -41,14 +41,14 @@
 using namespace std;
 
 //FIXED parameters
-int tasKDuration = 1200;
+int tasKDuration = 120;
 int rescheduleInterval = 86400;
 
 //3D grid parameters
 double cellSize = 0.1;
 int dimX = 100;
 int dimY = 100;
-int dimZ = 100;
+int dimZ = 40;
 float camera_range = 4.0;
 
 //standard parameters
@@ -128,7 +128,7 @@ void reconfigureCallback(topological_exploration::topological_explorationConfig 
     ROS_INFO("Reconfigure Request: %lf %d %d", config.explorationRatio, config.maxTaskNumber, config.taskDuration);
     explorationRatio = config.explorationRatio;
     maxTaskNumber = config.maxTaskNumber;
-    taskDuration = config.taskDuration;
+    //taskDuration = config.taskDuration;
     taskPriority = config.taskPriority;
     debug = config.verbose;
     taskStartDelay = config.taskStartDelay;
@@ -756,6 +756,7 @@ int main(int argc,char* argv[])
     n.param("dimX", dimX, 100);
     n.param("dimY", dimY, 100);
     n.param("dimZ", dimZ, 40);
+    n.param("taskDuration", taskDuration, 1200);
 
     if(sweep_type.compare("complete") == 0)
         sweep_measurements = 51;
