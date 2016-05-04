@@ -346,7 +346,7 @@ int generateNewSchedule(uint32_t givenTime)//TODO -> save schedule in MongoDB
     int numSlots = 24*3600/windowDuration;
     uint32_t timeSlots[numSlots];
     uint32_t midnight = getMidnightTime(givenTime);
-    retrieveGrids();
+    //retrieveGrids();
 
     /*create timeslots*/
     for (int i = 0;i<numSlots;i++) timeSlots[i] = midnight+3600*24/numSlots*i;
@@ -818,6 +818,8 @@ int main(int argc,char* argv[])
         ROS_ERROR("Topological navigation does not report about tagged nodes. Is it running?");
         return -1;
     }
+
+    retrieveGrids();
 
     //generate schedule
     ros::Time currentTime = ros::Time::now();
