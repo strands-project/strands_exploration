@@ -26,8 +26,8 @@ class PeopleCountingManager(object):
         self.poisson_proc.load_from_db()
         self.poisson_consent = PoissonWrapper(
             rospy.get_param("~consent_topic", "/skeleton_data/consent_ret"),
-            String, "data", "nothing", time_window*3, time_increment,
-            periodic_cycle/7
+            String, "data", "nothing", time_window, time_increment,
+            periodic_cycle
         )
         rospy.sleep(0.1)
         self.topo_map = None
@@ -36,7 +36,6 @@ class PeopleCountingManager(object):
             "Region ids and their nearest waypoints: %s" % str(self.region_wps)
         )
         rospy.sleep(0.1)
-        rospy.loginfo("Create a service %s/get_waypoints..." % name)
         self.service = rospy.Service(
             '/exploration_services/activity_exp_srv',
             GetExplorationTasks, self._srv_cb
@@ -70,8 +69,13 @@ class PeopleCountingManager(object):
         suggested_score = list()
         for i in result:
             if i[1] in self.region_wps:
-                suggested_wps.append(self.region_wps[i[1]])
-                suggested_score.append(i[0])
+                if self.region_wps[i[1]] in suggested_wps:
+                    suggested_score[
+                        suggested_wps.index(self.region_wps[i[1]])
+                    ] += i[0]
+                else:
+                    suggested_wps.append(self.region_wps[i[1]])
+                    suggested_score.append(i[0])
             else:
                 rospy.loginfo(
                     "No waypoint covers region %s, removing region..." % i[1]
@@ -79,13 +83,14 @@ class PeopleCountingManager(object):
         total = float(sum(suggested_score))
         try:
             task = GetExplorationTasksResponse(
-                suggested_wps,
+                suggested_wps[:5],
                 map(lambda i: i/total, suggested_score)[:5]
             )
         except:
             rospy.logwarn(
                 "Ups...no suggestion for waypoints is found at the moment"
             )
+            suggested_wps = suggested_wps[:5]
             task = GetExplorationTasksResponse(
                 suggested_wps,
                 [1/float(len(suggested_wps)) for i in range(len(suggested_wps))]

@@ -38,9 +38,9 @@ class PoissonProcesses(object):
         if key not in self.poisson:
             self.poisson[key] = Lambda()
         self.poisson[key].update_lambda([count])
-        rospy.loginfo(
-            "Poisson model is updated from %d to %d" % (start_time.secs, end_time.secs)
-        )
+        # rospy.loginfo(
+        #     "Poisson model is updated from %d to %d" % (start_time.secs, end_time.secs)
+        # )
 
     def retrieve(self, start_time, end_time):
         """ retrieve poisson distribution from specified start_time until specified end_time
@@ -49,9 +49,9 @@ class PoissonProcesses(object):
         # convert start_time and end_time to the closest time range (in minutes)
         start_time = self._convert_time(start_time)
         end_time = self._convert_time(end_time)
-        rospy.loginfo(
-            "Retrieving Poisson model from %d to %d" % (start_time.secs, end_time.secs)
-        )
+        # rospy.loginfo(
+        #     "Retrieving Poisson model from %d to %d" % (start_time.secs, end_time.secs)
+        # )
         if self._init_time is None:
             rospy.logwarn("Retrieving data is not possible, no poisson model has been learnt.")
             return
@@ -96,7 +96,7 @@ class PoissonProcesses(object):
             self.time_window, lmbd.shape, lmbd.scale, lmbd.get_rate()
         )
         meta.update({"start": self._init_time.secs, "year": start.year})
-        print "Storing %s with meta %s" % (str(msg), str(meta))
+        # print "Storing %s with meta %s" % (str(msg), str(meta))
         query = {
             "month": start.month, "day": start.day, "hour": start.hour,
             "minute": start.minute, "duration.secs": self.time_window.secs
@@ -142,15 +142,15 @@ class PeriodicPoissonProcesses(PoissonProcesses):
         super(PeriodicPoissonProcesses, self).__init__(time_window, minute_increment, coll)
 
     def update(self, start_time, count):
-        real_start = start_time
-        end_time = start_time + self.time_window
+        # real_start = start_time
+        # end_time = start_time + self.time_window
         if self._init_time is not None:
             while (start_time - self._init_time) >= (self.minute_increment * self.periodic_cycle):
                 start_time = start_time - (self.minute_increment * self.periodic_cycle)
         super(PeriodicPoissonProcesses, self).update(start_time, count)
-        rospy.loginfo(
-            "Poisson model is updated from %d to %d in the real time." % (real_start.secs, end_time.secs)
-        )
+        # rospy.loginfo(
+        #     "Poisson model is updated from %d to %d in the real time." % (real_start.secs, end_time.secs)
+        # )
 
     def store_to_mongo(self, meta):
         meta.update({'periodic_cycle': self.periodic_cycle})
@@ -172,11 +172,11 @@ class PeriodicPoissonProcesses(PoissonProcesses):
         # convert start_time and end_time to the closest time range (in minutes)
         start_time = super(PeriodicPoissonProcesses, self)._convert_time(start_time)
         end_time = super(PeriodicPoissonProcesses, self)._convert_time(end_time)
-        rospy.loginfo(
-            "Retrieving Poisson model from %d to %d in the real time." % (
-                start_time.secs, end_time.secs
-            )
-        )
+        # rospy.loginfo(
+        #     "Retrieving Poisson model from %d to %d in the real time." % (
+        #         start_time.secs, end_time.secs
+        #     )
+        # )
         real_start = start_time
         result = dict()
         if self._init_time is not None:

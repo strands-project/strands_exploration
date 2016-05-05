@@ -18,7 +18,7 @@ class PoissonProcessesPeople(object):
         self, config, window=10, increment=1,
         periodic_cycle=10080, coll="poisson_processes"
     ):
-        rospy.loginfo("Initializing people counting...")
+        # rospy.loginfo("Initializing people counting...")
         temp = datetime.datetime.fromtimestamp(rospy.Time.now().secs)
         temp = datetime.datetime(
             temp.year, temp.month, temp.day, temp.hour, temp.minute, 0
@@ -82,7 +82,7 @@ class PoissonProcessesPeople(object):
             delta = (rospy.Time.now() - self._start_time)
             # rospy.loginfo("%d seconds" % delta.secs)
             if delta > rospy.Duration(self.time_window*60):
-                rospy.loginfo("Updating poisson processes for each region...")
+                # rospy.loginfo("Updating poisson processes for each region...")
                 self.update()
             rospy.sleep(1)
 
@@ -91,16 +91,16 @@ class PoissonProcessesPeople(object):
             self._start_time, rospy.Time.now(), minute_increment=self.time_increment
         )
         temp = copy.deepcopy(self.trajectories)
-        rospy.loginfo("Total trajectories counted so far is %d." % len(temp))
+        # rospy.loginfo("Total trajectories counted so far is %d." % len(temp))
 
         traj_inds = list()
         self._start_time = self._start_time + rospy.Duration(self.time_increment*60)
         for observation in region_observations:
-            rospy.loginfo(
-                "Observation in region %s was for %d duration from %d to %d." % (
-                    observation.region_id, observation.duration.secs, observation.start_from.secs, observation.until.secs
-                )
-            )
+            # rospy.loginfo(
+            #     "Observation in region %s was for %d duration from %d to %d." % (
+            #         observation.region_id, observation.duration.secs, observation.start_from.secs, observation.until.secs
+            #     )
+            # )
             count = 0
             for ind, trajectory in enumerate(temp):
                 points = [
@@ -153,7 +153,7 @@ class PoissonProcessesPeople(object):
         multiplier_estimator = 3600 / float(
             (60 / self.time_increment) * upper_threshold_duration.secs
         )
-        rospy.loginfo("Extrapolate count %d by %.2f" % (count, multiplier_estimator))
+        # rospy.loginfo("Extrapolate count %d by %.2f" % (count, multiplier_estimator))
         return math.ceil(multiplier_estimator * count)
 
 
