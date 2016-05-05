@@ -28,7 +28,7 @@ class exploration_slots(object):
             rospy.sleep(rospy.Duration(0.1))
         rospy.loginfo("... Got Topological map")        
         
-        self.explore_srv=rospy.Service('/edge_exploration/get_exploration_task', strands_exploration_msgs.srv.GetExplorationTasks, self.get_exploration_task_cb)
+        self.explore_srv=rospy.Service('/exploration_services/get_edge_exploration', strands_exploration_msgs.srv.GetExplorationTasks, self.get_exploration_task_cb)
         rospy.loginfo("All Done ...")
         rospy.spin()
 
