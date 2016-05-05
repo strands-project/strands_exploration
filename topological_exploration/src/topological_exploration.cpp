@@ -62,7 +62,6 @@ string normal_node;
 //runtine parameters
 float explorationRatio = 1.0;
 int maxTaskNumber = 1;
-int taskDuration = 60;
 int taskPriority = 50;
 bool debug = true;
 int taskStartDelay = 5;
@@ -125,10 +124,9 @@ uint32_t getMidnightTime(uint32_t givenTime)
 /*parameter reconfiguration*/
 void reconfigureCallback(topological_exploration::topological_explorationConfig &config, uint32_t level) 
 {
-    ROS_INFO("Reconfigure Request: %lf %d %d", config.explorationRatio, config.maxTaskNumber, config.taskDuration);
+    ROS_INFO("Reconfigure Request: %lf %d", config.explorationRatio, config.maxTaskNumber);
     explorationRatio = config.explorationRatio;
     maxTaskNumber = config.maxTaskNumber;
-    //taskDuration = config.taskDuration;
     taskPriority = config.taskPriority;
     debug = config.verbose;
     taskStartDelay = config.taskStartDelay;
