@@ -80,7 +80,7 @@ class PoissonProcessesPeople(object):
     def continuous_update(self):
         while not rospy.is_shutdown():
             delta = (rospy.Time.now() - self._start_time)
-            rospy.loginfo("%d seconds" % delta.secs)
+            # rospy.loginfo("%d seconds" % delta.secs)
             if delta > rospy.Duration(self.time_window*60):
                 rospy.loginfo("Updating poisson processes for each region...")
                 self.update()
