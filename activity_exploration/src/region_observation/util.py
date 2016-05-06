@@ -46,7 +46,7 @@ def create_line_string(points):
     return LineString(points)
 
 
-def robot_view_cone(pose):
+def robot_view_cone(pose, pan_orientation=0.0):
     """
         let's call the triangle PLR, where P is the robot pose,
         L the left vertex, R the right vertex
@@ -56,7 +56,7 @@ def robot_view_cone(pose):
     _, _, yaw = euler_from_quaternion(
         [0, 0, pose.orientation.z, pose.orientation.w]
     )
-    # yaw = (yaw - (0.5 * math.pi)) % (2 * math.pi)
+    yaw = (yaw + pan_orientation) % (2 * math.pi)
     lyaw = (yaw - (0.5 * alpha)) % (2 * math.pi)
     ryaw = (yaw + (0.5 * alpha)) % (2 * math.pi)
 

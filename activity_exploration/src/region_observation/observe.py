@@ -5,6 +5,7 @@ import rospy
 import datetime
 import threading
 
+from sensor_msgs.msg import JointState
 from geometry_msgs.msg import Pose, Point
 from visualization_msgs.msg import Marker
 from activity_exploration.msg import RegionObservationTime
@@ -28,8 +29,10 @@ class OnlineRegionObservation(object):
         self.soma_config = soma_config
         self.intersected_regions = list()
         # get robot sight
-        rospy.loginfo("Subcribe to /robot_pose...")
+        self._pan_orientation = 0.0
+        rospy.loginfo("Subcribe to /robot_pose and /ptu/state...")
         rospy.Subscriber("/robot_pose", Pose, self._robot_cb, None, 10)
+        rospy.Subscriber("/ptu/state", JointState, self._ptu_cb, None, 10)
         self.region_observation_duration = dict()
         # db for RegionObservation
         rospy.loginfo("Create collection db as %s..." % coll)
@@ -41,8 +44,11 @@ class OnlineRegionObservation(object):
         self._msgs = list()
         self._thread = threading.Thread(target=self.publish_msgs)
 
+    def _ptu_cb(self, ptu):
+        self._pan_orientation = ptu.position[ptu.name.index('pan')]
+
     def _robot_cb(self, pose):
-        robot_sight, arr_robot_sight = robot_view_cone(pose)
+        robot_sight, arr_robot_sight = robot_view_cone(pose, self._pan_orientation)
         self.draw_view_cone(arr_robot_sight)
         intersected_regions = list()
         for roi, region in self.regions.iteritems():
