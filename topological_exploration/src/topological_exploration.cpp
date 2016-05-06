@@ -41,7 +41,7 @@
 using namespace std;
 
 //FIXED parameters
-int tasKDuration = 120;
+int taskDuration = 120;
 int rescheduleInterval = 86400;
 
 //3D grid parameters
@@ -62,7 +62,6 @@ string normal_node;
 //runtine parameters
 float explorationRatio = 1.0;
 int maxTaskNumber = 1;
-int taskDuration = 60;
 int taskPriority = 50;
 bool debug = true;
 int taskStartDelay = 5;
@@ -125,10 +124,9 @@ uint32_t getMidnightTime(uint32_t givenTime)
 /*parameter reconfiguration*/
 void reconfigureCallback(topological_exploration::topological_explorationConfig &config, uint32_t level) 
 {
-    ROS_INFO("Reconfigure Request: %lf %d %d", config.explorationRatio, config.maxTaskNumber, config.taskDuration);
+    ROS_INFO("Reconfigure Request: %lf %d", config.explorationRatio, config.maxTaskNumber);
     explorationRatio = config.explorationRatio;
     maxTaskNumber = config.maxTaskNumber;
-    //taskDuration = config.taskDuration;
     taskPriority = config.taskPriority;
     debug = config.verbose;
     taskStartDelay = config.taskStartDelay;
@@ -239,7 +237,7 @@ bool visualizeGrid(strands_exploration_msgs::Visualize::Request  &req, strands_e
 bool explorationRoutine(strands_exploration_msgs::GetExplorationTasks::Request &req, strands_exploration_msgs::GetExplorationTasks::Response &res)
 {
     unsigned int request_interval = req.end_time.sec - req.start_time.sec;
-    unsigned int request_slots = request_interval/tasKDuration;
+    unsigned int request_slots = request_interval/taskDuration;
 
     if(request_interval < 0)
     {
@@ -249,9 +247,9 @@ bool explorationRoutine(strands_exploration_msgs::GetExplorationTasks::Request &
 
     ROS_INFO("Exploration routine: start time %d duration %d time slots %d", req.start_time.sec,request_interval,request_slots);
 
-    int initial_slot = (req.start_time.sec-timeSlots[0])/tasKDuration;
+    int initial_slot = (req.start_time.sec-timeSlots[0])/taskDuration;
 
-    int numSlots = 24*3600/tasKDuration;
+    int numSlots = 24*3600/taskDuration;
 
     for(int i = 0; i <= request_slots; i++)
     {
@@ -347,7 +345,7 @@ void retrieveGrids(void)
 int generateNewSchedule(uint32_t givenTime)//TODO -> save schedule in MongoDB
 {
     /*establish relevant time frame*/
-    int numSlots = 24*3600/tasKDuration;
+    int numSlots = 24*3600/taskDuration;
     uint32_t timeSlots[numSlots];
     uint32_t midnight = getMidnightTime(givenTime);
     //retrieveGrids();
@@ -425,7 +423,7 @@ int generateNewSchedule(uint32_t givenTime)//TODO -> save schedule in MongoDB
 int generateSchedule(uint32_t givenTime)
 {
     char dummy[1000];
-    int numSlots = 24*3600/tasKDuration;
+    int numSlots = 24*3600/taskDuration;
     uint32_t midnight =  getMidnightTime(givenTime);
     if (debug)
     {
@@ -477,16 +475,16 @@ int getNextTimeSlot(int lookAhead)
     char dummy[1000];
     char testTime[1000];
     time_t timeInfo;
-    int numSlots = 24*3600/tasKDuration;
+    int numSlots = 24*3600/taskDuration;
     ros::Time currentTime = ros::Time::now();
-    uint32_t givenTime = currentTime.sec+lookAhead*tasKDuration+rescheduleCheckTime;
+    uint32_t givenTime = currentTime.sec+lookAhead*taskDuration+rescheduleCheckTime;
     uint32_t midnight = getMidnightTime(givenTime);
     if (timeSlots[0] != midnight)
     {
         ROS_INFO("Generating new schedule!");
         generateSchedule(givenTime);
     }
-    int currentSlot = (givenTime-timeSlots[0])/tasKDuration;
+    int currentSlot = (givenTime-timeSlots[0])/taskDuration;
     //ROS_INFO("Time %i - slot %i: going to node %i(%s).",currentTime.sec-midnight,currentSlot,nodes[currentSlot],fremengridSet.frelements[nodes[currentSlot]]->id);
     if (debug)
     {
@@ -532,7 +530,7 @@ int createTask(int slot)
         task.arguments.push_back(taskArg);
 
         task.start_after =  ros::Time(timeSlots[slot]+taskStartDelay,0);
-        task.end_before = ros::Time(timeSlots[slot]+tasKDuration - 2,0);
+        task.end_before = ros::Time(timeSlots[slot]+taskDuration - 2,0);
         task.max_duration = task.end_before - task.start_after;
         strands_executive_msgs::AddTask taskAdd;
         taskAdd.request.task = task;
