@@ -28,8 +28,6 @@ class OnlineRegionObservation(object):
         self.soma_config = soma_config
         self.intersected_regions = list()
         # get robot sight
-        rospy.loginfo("Subcribe to /robot_pose...")
-        rospy.Subscriber("/robot_pose", Pose, self._robot_cb, None, 10)
         self.region_observation_duration = dict()
         # db for RegionObservation
         rospy.loginfo("Create collection db as %s..." % coll)
@@ -40,6 +38,8 @@ class OnlineRegionObservation(object):
         self._pub_reg = rospy.Publisher("%s/observation" % name, RegionObservationTime, queue_size=10)
         self._msgs = list()
         self._thread = threading.Thread(target=self.publish_msgs)
+        rospy.loginfo("Subcribe to /robot_pose...")
+        rospy.Subscriber("/robot_pose", Pose, self._robot_cb, None, 10)
 
     def _robot_cb(self, pose):
         robot_sight, arr_robot_sight = robot_view_cone(pose)
