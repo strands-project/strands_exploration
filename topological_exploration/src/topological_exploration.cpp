@@ -787,7 +787,7 @@ int main(int argc,char* argv[])
     //to visualize 3D grid
     ros::ServiceServer visualize_grid = n.advertiseService("view_grid", visualizeGrid);
     //exploration routine
-    ros::ServiceServer routine_service = n.advertiseService("/exploration_taks_services/edge_exp_srv", explorationRoutine);
+    ros::ServiceServer routine_service = n.advertiseService("/exploration_services/fremen_grid_exp_srv", explorationRoutine);
     //to get relevant nodes
     nodeListClient = n.serviceClient<strands_navigation_msgs::GetTaggedNodes>("/topological_map_manager/get_tagged_nodes");
     //to create task objects
