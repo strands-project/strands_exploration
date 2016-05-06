@@ -18,7 +18,6 @@ class PoissonProcessesPeople(object):
         self, config, window=10, increment=1,
         periodic_cycle=10080, coll="poisson_processes"
     ):
-        # rospy.loginfo("Initializing people counting...")
         temp = datetime.datetime.fromtimestamp(rospy.Time.now().secs)
         temp = datetime.datetime(
             temp.year, temp.month, temp.day, temp.hour, temp.minute, 0
@@ -44,11 +43,12 @@ class PoissonProcessesPeople(object):
             roi: PeriodicPoissonProcesses(window, increment, periodic_cycle) for roi in self.regions.keys()
         }
 
-    def retrieve_from_to(self, start_time, end_time):
+    def retrieve_from_to(self, start_time, end_time, scale=False):
         result = dict()
         for roi, poisson in self.process.iteritems():
             result.update(
-                {roi: poisson.retrieve(start_time, end_time)}
+                # use upper confidence rate value
+                {roi: poisson.retrieve(start_time, end_time, True, scale)}
             )
         return result
 
@@ -80,7 +80,6 @@ class PoissonProcessesPeople(object):
     def continuous_update(self):
         while not rospy.is_shutdown():
             delta = (rospy.Time.now() - self._start_time)
-            # rospy.loginfo("%d seconds" % delta.secs)
             if delta > rospy.Duration(self.time_window*60):
                 # rospy.loginfo("Updating poisson processes for each region...")
                 self.update()
@@ -119,8 +118,7 @@ class PoissonProcessesPeople(object):
                 self.process[observation.region_id].update(observation.start_from, count)
                 # save the observation for that time
                 self._store(observation.region_id, observation.start_from)
-        # clear observed region to get new info, remove trajectories that
-        # have been updated
+        # remove trajectories that have been updated
         n = len(temp)
         temp = [temp[i] for i in traj_inds]
         while self._acquired:

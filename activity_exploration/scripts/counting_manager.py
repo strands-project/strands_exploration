@@ -19,15 +19,14 @@ class PeopleCountingManager(object):
         soma_config = rospy.get_param("~soma_config", "activity_exploration")
         time_window = rospy.get_param("~time_window", 10)
         time_increment = rospy.get_param("~time_increment", 1)
-        periodic_cycle = rospy.get_param("~periodic_cycle", 10080)
+        periodic_cycle = rospy.get_param("~periodic_cycle", 1440)
         self.poisson_proc = PoissonProcessesPeople(
             soma_config, time_window, time_increment, periodic_cycle
         )
         self.poisson_proc.load_from_db()
         self.poisson_consent = PoissonWrapper(
             rospy.get_param("~consent_topic", "/skeleton_data/consent_ret"),
-            String, "data", "nothing", time_window, time_increment,
-            periodic_cycle
+            String, "data", "nothing", time_window*3, time_increment, periodic_cycle
         )
         rospy.sleep(0.1)
         self.topo_map = None
@@ -40,6 +39,7 @@ class PeopleCountingManager(object):
             '/exploration_services/activity_exp_srv',
             GetExplorationTasks, self._srv_cb
         )
+        rospy.loginfo("/exploration_services/activity_exp_srv service is ready...")
         rospy.sleep(0.1)
 
     def spin(self):
@@ -60,14 +60,17 @@ class PeopleCountingManager(object):
         rates = self.poisson_proc.retrieve_from_to(
             msg.start_time, msg.end_time
         )
-        result = list()
+        visit_plan = list()
         for roi, poisson in rates.iteritems():
             total_rate = sum(poisson.values())
-            result.append((total_rate, roi))
-        result = sorted(result, key=lambda i: i[0], reverse=True)
+            visit_plan.append((total_rate, roi))
+        visit_plan = sorted(visit_plan, key=lambda i: i[0], reverse=True)
+        visit_plan = self._check_visit_plan(
+            msg.start_time, msg.end_time, visit_plan
+        )
         suggested_wps = list()
         suggested_score = list()
-        for i in result:
+        for i in visit_plan:
             if i[1] in self.region_wps:
                 if self.region_wps[i[1]] in suggested_wps:
                     suggested_score[
@@ -80,36 +83,39 @@ class PeopleCountingManager(object):
                 rospy.loginfo(
                     "No waypoint covers region %s, removing region..." % i[1]
                 )
-        total = float(sum(suggested_score))
-        try:
-            task = GetExplorationTasksResponse(
-                suggested_wps[:5],
-                map(lambda i: i/total, suggested_score)[:5]
-            )
-        except:
-            rospy.logwarn(
-                "Ups...no suggestion for waypoints is found at the moment"
-            )
-            suggested_wps = suggested_wps[:5]
-            task = GetExplorationTasksResponse(
-                suggested_wps,
-                [1/float(len(suggested_wps)) for i in range(len(suggested_wps))]
-            )
+        task = GetExplorationTasksResponse(
+            suggested_wps[:5], suggested_score[:5]
+        )
         task = self._check_consent(msg, task)
-        print task
         return task
+
+    def _check_visit_plan(self, start_time, end_time, visit_plan):
+        if random.random() > 0.7:
+            rospy.loginfo("Changing WayPoints to visit to check unobserved places...")
+            scales = self.poisson_proc.retrieve_from_to(
+                start_time, end_time, True
+            )
+            scale_plan = list()
+            for roi, scale in scales.iteritems():
+                total_scale = sum(scale.values())
+                scale_plan.append((total_scale, roi))
+            scale_plan = sorted(scale_plan, key=lambda i: i[0])
+            new_visit_plan = list()
+            for i in scale_plan:
+                for j in visit_plan:
+                    if i[1] == j[1]:
+                        new_visit_plan.append(j)
+                        break
+            visit_plan = new_visit_plan
+        return visit_plan
 
     def _check_consent(self, msg, task):
         rates_consent = self.poisson_consent.retrieve_from_to(
             msg.start_time, msg.end_time
         )
-        if sum(rates_consent.values()) > rospy.get_param("~consent_rate", 1.5):
-            rospy.loginfo("Waypoint's order: %s" % str(task.task_definition))
-            rospy.logwarn("Shuffling suggested waypoints...")
+        if sum(rates_consent.values()) > rospy.get_param("~consent_rate", 0.8):
+            rospy.loginfo("Waypoint's order: %s is shuffled" % str(task.task_definition))
             random.shuffle(task.task_definition)
-            rospy.loginfo(
-                "New waypoint's order: %s" % str(task.task_definition)
-            )
         return task
 
     def _topo_map_cb(self, topo_map):
@@ -123,9 +129,9 @@ class PeopleCountingManager(object):
         topo_sub = rospy.Subscriber(
             "/topological_map", TopologicalMap, self._topo_map_cb, None, 10
         )
+        rospy.loginfo("Getting information from /topological_map...")
         while self.topo_map is None:
             rospy.sleep(0.1)
-            rospy.logwarn("Trying to get information from /topological_map...")
         topo_sub.unregister()
 
         for wp in self.topo_map.nodes:
@@ -136,11 +142,6 @@ class PeopleCountingManager(object):
                 if is_intersected(wp_sight, region):
                     intersected_regions.append(region)
                     intersected_rois.append(roi)
-            if len(intersected_regions) > 1:
-                rospy.loginfo("%s covers more than one region..." % wp.name)
-            elif len(intersected_regions) == 0:
-                rospy.logwarn("%s does not cover any region!" % wp.name)
-                continue
             for ind, region in enumerate(intersected_regions):
                 area = wp_sight.intersection(region).area
                 roi = intersected_rois[ind]
