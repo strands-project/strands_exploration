@@ -81,19 +81,21 @@ class OnlineRegionObservation(object):
             if rospy.is_shutdown():
                 return
             current_roi = self.intersected_regions
-            # for a new registered roi, store current time
-            for roi in [i for i in current_roi if i not in prev_roi]:
-                rospy.loginfo("Robot sees a new region %s" % roi)
-                roi_start_time[roi] = current_time
-            # for a registered roi that was just passed, calculate duration
-            for roi in [i for i in prev_roi if i not in current_roi]:
-                rospy.loginfo("Robot leaves region %s" % roi)
-                if roi in duration:
-                    duration[roi] += (current_time - roi_start_time[roi])
-                else:
-                    duration[roi] = current_time - roi_start_time[roi]
-                del roi_start_time[roi]
-            prev_roi = current_roi
+            if len(current_roi) > 0:
+                # for a new registered roi, store current time
+                for roi in [i for i in current_roi if i not in prev_roi]:
+                    rospy.loginfo("Robot sees a new region %s" % roi)
+                    roi_start_time[roi] = current_time
+                # for a registered roi that was just passed, calculate duration
+                for roi in [i for i in prev_roi if i not in current_roi]:
+                    rospy.loginfo("Robot leaves region %s" % roi)
+                    if roi in duration:
+                        duration[roi] += (current_time - roi_start_time[roi])
+                    else:
+                        duration[roi] = current_time - roi_start_time[roi]
+                    del roi_start_time[roi]
+            if prev_roi != current_roi:
+                prev_roi = current_roi
             current_time = rospy.Time.now()
             rospy.sleep(0.05)
 
@@ -124,6 +126,7 @@ class OnlineRegionObservation(object):
             for msg in self._msgs:
                 self._pub_reg.publish(msg)
                 rospy.sleep(0.1)
+            rospy.sleep(0.1)
 
     def draw_view_cone(self, view_cone):
         marker = Marker()
