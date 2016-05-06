@@ -1,6 +1,6 @@
 string waypoint
 uint64 time
-uint64[] dimensions
+geometry_msgs/Point dimensions
 geometry_msgs/Point origin
 float64 resolution
 float64 last_info

@@ -21,13 +21,13 @@ class grid_store(object):
         print req.grid
         
         meta ={}
-        msg_store = MessageStoreProxy(collection='strings') #change this
+        msg_store = MessageStoreProxy(collection='fremengrids') #change this
         msg_store.insert(req.grid,meta)
 
         return True
 
     def load_grid_cb(self, req):
-        msg_store = MessageStoreProxy(collection='strings')
+        msg_store = MessageStoreProxy(collection='fremengrids')
         query_meta={}
         sortq={'_meta.inserted_at':-1}
         message_list = msg_store.query(strands_exploration_msgs.msg.FremenGrid._type, {}, query_meta, sort_query= sortq.items())

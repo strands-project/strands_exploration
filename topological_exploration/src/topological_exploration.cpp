@@ -1,103 +1,87 @@
 #include <stdlib.h>
-#include "ros/ros.h"
-#include <mongodb_store/message_store.h>
+#include <sstream>
+#include <cassert>
+#include <time.h>
+#include <ros/ros.h>
 #include <tf/tf.h>
 #include <dynamic_reconfigure/server.h>
 #include <topological_exploration/topological_explorationConfig.h>
 #include <strands_navigation_msgs/NavStatistics.h>
 #include <strands_navigation_msgs/TopologicalMap.h>
 #include <strands_navigation_msgs/TopologicalNode.h>
-#include <strands_executive_msgs/AddTask.h>
-#include <strands_executive_msgs/CancelTask.h>
-#include <strands_executive_msgs/SetExecutionStatus.h>
-#include <strands_executive_msgs/CreateTask.h>
-#include <mongodb_store_msgs/StringPair.h>
-#include <std_msgs/Empty.h>
-#include <geometry_msgs/PoseStamped.h>
 #include <strands_navigation_msgs/GetTaggedNodes.h>
+#include <strands_executive_msgs/AddTask.h>
 #include <std_srvs/Empty.h>
 #include <std_msgs/String.h>
 #include <std_msgs/Int32.h>
-#include <visualization_msgs/MarkerArray.h>
+#include <std_msgs/Empty.h>
 #include <std_msgs/ColorRGBA.h>
+#include <std_msgs/Float64.h>
+#include <geometry_msgs/Pose.h>
+#include <visualization_msgs/MarkerArray.h>
 #include <scitos_msgs/BatteryState.h>
-#include <strands_exploration_msgs//FremenGrid.h>
-#include <strands_exploration_msgs/Frelement.h>
-#include <strands_exploration_msgs/SFrelement.h>
-#include "CFremenGridSet.h"
-#include <time.h> 
-#include "mongodb_store/message_store.h"
-#include "geometry_msgs/Pose.h"
-#include <boost/foreach.hpp>
-#include <sstream>
-#include <cassert>
+#include <scitos_ptu/PanTiltActionFeedback.h>
 #include <image_transport/image_transport.h>
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/Image.h>
 #include <tf/transform_listener.h>
-#include "strands_exploration_msgs/AddView.h"
-#include "strands_exploration_msgs/Visualize.h"
-#include <std_msgs/Float64.h>
-#include <scitos_ptu/PanTiltActionFeedback.h>
+#include <mongodb_store/message_store.h>
 #include <mongodb_store_msgs/StringPair.h>
+#include <strands_exploration_msgs/FremenGrid.h>
+#include <strands_exploration_msgs/Frelement.h>
+#include <strands_exploration_msgs/SFrelement.h>
+#include <strands_exploration_msgs/LoadGrid.h>
+#include <strands_exploration_msgs/SaveGrid.h>
+#include <strands_exploration_msgs/AddView.h>
+#include <strands_exploration_msgs/Visualize.h>
+#include <strands_exploration_msgs/GetExplorationTasks.h>
+#include "CFremenGridSet.h"
 
 
-
-using namespace mongodb_store;
 using namespace std;
 
 //FIXED parameters
-int windowDuration = 180;
+int tasKDuration = 120;
 int rescheduleInterval = 86400;
 
 //3D grid parameters
 double cellSize = 0.1;
 int dimX = 100;
 int dimY = 100;
-int dimZ = 100;
+int dimZ = 40;
 float camera_range = 4.0;
 
 //standard parameters
 string collectionName;
 string scheduleDirectory;
+string gridsDirectory;
+string sweep_type;
+string ground_node;
+string normal_node;
 
 //runtine parameters
-float explorationRatio = 0.5;
-int8_t   minimalBatteryLevel = 10;
-int32_t   minimalBatteryLevelTime = 0;
-int interactionTimeout = 30;
+float explorationRatio = 1.0;
 int maxTaskNumber = 1;
-int taskDuration = 60;//180;
-int taskPriority = 1;	
+int taskDuration = 60;
+int taskPriority = 50;
 bool debug = true;
 int taskStartDelay = 5;
 int rescheduleCheckTime = 5;
-float entropyThreshold = 25000;
 
 //ROS communication
-ros::NodeHandle *n;
-MessageStoreProxy *messageStore;
-ros::Subscriber robotPoseSub;
+
 ros::Subscriber currentNodeSub;
-ros::Subscriber interfaceSub; 
-ros::Subscriber batterySub;
-ros::Subscriber infoTaskSub;
-ros::Subscriber guiSub;
 ros::Subscriber mapSub;
-ros::Subscriber ptu_state_sub;
-ros::Subscriber node_sub;
+ros::Publisher  grid_markers_pub;
 ros::ServiceClient nodeListClient;
 ros::ServiceClient taskAdder;
-ros::ServiceClient taskCreator;
-ros::ServiceClient taskCancel;
-ros::Publisher  grid_markers_pub;
-ros::Publisher information_pub;
+ros::ServiceClient load_service;
+ros::ServiceClient save_service;
 
 
-const mongo::BSONObj EMPTY_BSON_OBJ;
 
 //Fremen grid component
-CFremenGridSet fremengridSet, groundSet;
+CFremenGridSet fremengridSet;
 
 strands_navigation_msgs::TopologicalMap topoMap;
 
@@ -107,29 +91,28 @@ int currentTimeSlot = -1;
 int numCurrentTasks = 0; 
 string nodeName = "ChargingPoint";
 string closestNode = "ChargingPoint";
-int32_t lastInteractionTime = -1;
-bool forceCharging = false;
 int timeOffset = 0;
 
 //times and nodes of schedule
 uint32_t timeSlots[10000];
 int nodes[10000];
+float node_entropies[1000];
+float max_entropy;
 int taskIDs[10000];
 int numNodes = 0;
 
-float info;
-//unsigned int info_index = 0;
 
 //Ray casting parameters
 int integrateMeasurements = 0;
-int maxMeasurements = 1;//15;
+int maxMeasurements = 1;
 int measurements = maxMeasurements;
-//float *dept;
 bool first_grid = true;
-bool incorporating = false;
 unsigned int timestamp;
 int gridIndex;
+unsigned int sweep_measurements;
+unsigned int current_measurement;
 
+std::vector<std::string> critical_nodes, exploration_nodes;
 string currentNode;
 
 tf::TransformListener *tf_listener;
@@ -142,24 +125,14 @@ uint32_t getMidnightTime(uint32_t givenTime)
 /*parameter reconfiguration*/
 void reconfigureCallback(topological_exploration::topological_explorationConfig &config, uint32_t level) 
 {
-    ROS_INFO("Reconfigure Request: %lf %d %d %d %d", config.explorationRatio, config.minimalBatteryLevel, config.interactionTimeout, config.maxTaskNumber, config.taskDuration);
+    ROS_INFO("Reconfigure Request: %lf %d %d", config.explorationRatio, config.maxTaskNumber, config.taskDuration);
     explorationRatio = config.explorationRatio;
-    minimalBatteryLevel = config.minimalBatteryLevel;
-    interactionTimeout = config.interactionTimeout;
     maxTaskNumber = config.maxTaskNumber;
-    taskDuration = config.taskDuration;
+    //taskDuration = config.taskDuration;
     taskPriority = config.taskPriority;
     debug = config.verbose;
     taskStartDelay = config.taskStartDelay;
     rescheduleCheckTime = config.rescheduleCheckTime;
-    entropyThreshold = config.entropyThreshold;
-}
-
-/*listen to battery and set forced charging if necessary*/
-void batteryCallBack(const scitos_msgs::BatteryState &msg)
-{
-    ROS_DEBUG("SpatioTemporal Exploration: battery level %i %i",msg.lifePercent,minimalBatteryLevel);
-    if (minimalBatteryLevel > msg.lifePercent) forceCharging = true; else forceCharging = false;
 }
 
 /*gets topological map*/
@@ -213,7 +186,7 @@ int publishGrid(string waypoint, unsigned int stamp, float minP, float maxP, flo
     float minZ = fremengridSet.fremengrid[id]->oZ;
     float maxX = minX+fremengridSet.fremengrid[id]->xDim*resolution-3*resolution/4;
     float maxY = minY+fremengridSet.fremengrid[id]->yDim*resolution-3*resolution/4;
-    float maxZ = 2.1;//minZ+grid->zDim*grid->resolution-3*grid->resolution/4;
+    float maxZ = 4.0;
     int cnt = 0;
     int cells = 0;
     float estimate;
@@ -259,14 +232,50 @@ bool visualizeGrid(strands_exploration_msgs::Visualize::Request  &req, strands_e
 {
     int numvoxels = publishGrid(req.waypoint, req.stamp, req.minProbability, req.maxProbability, req.period, req.type, req.name, req.set_color, req.color);
     ROS_INFO("%d voxels published.", numvoxels);
+    res.numcells = numvoxels;
+    return true;
+}
+
+bool explorationRoutine(strands_exploration_msgs::GetExplorationTasks::Request &req, strands_exploration_msgs::GetExplorationTasks::Response &res)
+{
+    unsigned int request_interval = req.end_time.sec - req.start_time.sec;
+    unsigned int request_slots = request_interval/tasKDuration;
+
+    if(request_interval < 0)
+    {
+        ROS_ERROR("Invalid time interval!");
+        return(false);
+    }
+
+    ROS_INFO("Exploration routine: start time %d duration %d time slots %d", req.start_time.sec,request_interval,request_slots);
+
+    int initial_slot = (req.start_time.sec-timeSlots[0])/tasKDuration;
+
+    int numSlots = 24*3600/tasKDuration;
+
+    for(int i = 0; i <= request_slots; i++)
+    {
+        if(initial_slot + i < numSlots)
+        {
+            res.task_definition.push_back(fremengridSet.fremengrid[nodes[initial_slot + i]]->id);
+            res.task_score.push_back(node_entropies[initial_slot + i]);
+            ROS_INFO("Exploration routine: node %s score %f ", fremengridSet.fremengrid[nodes[initial_slot + i]]->id, node_entropies[initial_slot + i]);
+        }
+        else
+            break;
+    }
+
+    return true;
 }
 
 /*updates the closest node*/
 void getCurrentNode(const std_msgs::String::ConstPtr& msg)
 {
     closestNode = msg->data;
+
     if (fremengridSet.find(msg->data.c_str())>-1){
         nodeName = msg->data;
+        ROS_INFO("Closest Exploration node switched to %s.",nodeName.c_str());
         if (debug) ROS_INFO("Closest Exploration node switched to %s.",nodeName.c_str());
     }else{
         if (debug) ROS_INFO("Closest node %s - however, it's not an Exploration node.",msg->data.c_str());
@@ -274,71 +283,83 @@ void getCurrentNode(const std_msgs::String::ConstPtr& msg)
 }
 
 /*loads relevant nodes from the map description*/
-int getRelevantNodes()//TODO -> get critical and non-critical waypoints
+int getRelevantNodes(string tag, std::vector<std::string>* exploration_nodes)
 {
     int result = -1;
 
     strands_navigation_msgs::GetTaggedNodes srv;
-    srv.request.tag = "Exploration";
+    srv.request.tag = tag;
     if (nodeListClient.call(srv))
     {
-        for (int i=0;i<srv.response.nodes.size();i++)
+        for (int i = 0;i<srv.response.nodes.size();i++)
         {
+            exploration_nodes->push_back(srv.response.nodes[i]);
             geometry_msgs::Point node_coordinates, grid_origin;
             coordinateSearch(srv.response.nodes[i], &node_coordinates);
 
             //grid origin calculation
             grid_origin.x = node_coordinates.x - (dimX*cellSize)/2;
             grid_origin.y = node_coordinates.y - (dimY*cellSize)/2;
-            grid_origin.z = 0.0;
+            grid_origin.z = -0.05;
 
             fremengridSet.add(srv.response.nodes[i].c_str(), grid_origin.x, grid_origin.y, grid_origin.z, dimX, dimY, dimZ, cellSize);
         }
 
         numNodes = fremengridSet.numFremenGrids;
-        ROS_INFO("Number of exploration nodes: %d",numNodes);
-        for (int i=0;i<numNodes;i++) ROS_INFO("FreMEnGrid ID: %i Label: %s.",i,fremengridSet.fremengrid[i]->id);
-        result = numNodes;
+        ROS_INFO("Found %d nodes with tag %s", (int) srv.response.nodes.size(), tag.c_str());
+        for (int i= numNodes - srv.response.nodes.size();i<numNodes;i++) ROS_INFO("FreMEnGrid ID: %i Label: %s.",i,fremengridSet.fremengrid[i]->id);
+        result = srv.response.nodes.size();
     }
     else
     {
-        ROS_ERROR("Failed to obtain Exploration-relevant nodes");
+        ROS_ERROR("Failed to obtain exploration nodes with tag %s.", tag.c_str());
     }
     return result;
 }
 
 /*retrieve grids from the database, updates the grids and estimates information gain*/
-void retrieveGrids(uint32_t lastTime)//TODO -> call load service
+void retrieveGrids(void)
 {
-    char testTime[1000];
-    vector< boost::shared_ptr<strands_exploration_msgs::FremenGrid> > results;
-    messageStore->query<strands_exploration_msgs::FremenGrid>(results);
-    //    BOOST_FOREACH( boost::shared_ptr<topological_exploration::FremenGrid> p,  results)
-    //    {
-    //        time_t timeInfo = p->time;
-    //        strftime(testTime, sizeof(testTime), "%Y-%m-%d_%H:%M:%S",localtime(&timeInfo));
-    //        ROS_INFO("There were %d interaction at %s at waypoint %s.",p->number,testTime,p->waypoint.c_str());
-    //        if (lastTime > p->time){
-    //            if (p->number>1) addResult(p->waypoint.c_str(),1,p->time); else addResult(p->waypoint.c_str(),0,p->time);
-    //        }
-    //    }
+
+    char filename[1000];
+    char grid_filename[10000];
+    char nodeName[1000];
+
+    for(int i = 0; i < fremengridSet.numFremenGrids; i++)
+    {
+        FILE* file = fopen(filename,"r");
+        sprintf(filename,"%s/%s.txt", gridsDirectory.c_str(), fremengridSet.fremengrid[i]->id);
+        if(file != NULL)
+        {
+            ROS_INFO("Last grid for waypoint %s given by %s",fremengridSet.fremengrid[i]->id,filename);
+            int check = fscanf(file,"%s %s\n", nodeName, grid_filename);
+            ROS_INFO("Loading grid %s from %s", nodeName,grid_filename);
+            fremengridSet.fremengrid[i]->load(grid_filename);
+        }
+        else
+        {
+            ROS_INFO("Grid not found, creating new grid!");
+        }
+    }
 }
 
 /*generates a schedule and saves it in a file*/
 int generateNewSchedule(uint32_t givenTime)//TODO -> save schedule in MongoDB
 {
     /*establish relevant time frame*/
-    int numSlots = 24*3600/windowDuration;
+    int numSlots = 24*3600/tasKDuration;
     uint32_t timeSlots[numSlots];
     uint32_t midnight = getMidnightTime(givenTime);
-    retrieveGrids(midnight);
+    //retrieveGrids();
 
     /*create timeslots*/
     for (int i = 0;i<numSlots;i++) timeSlots[i] = midnight+3600*24/numSlots*i;
     numNodes = fremengridSet.numFremenGrids;
 
     /*evaluate the individual nodes*/
+    max_entropy = 0.0;
     int p = 0;
+    float slot_entropies[1000];
     float entropy[1];
     uint32_t times[1];
     char dummy[1000];
@@ -354,13 +375,10 @@ int generateNewSchedule(uint32_t givenTime)//TODO -> save schedule in MongoDB
         {
             times[0] = timeSlots[s];
             coordinateSearch(fremengridSet.fremengrid[i]->id, &observationPoint);
-        fremengridSet.recalculate(fremengridSet.fremengrid[i]->id, times[0]);
-            entropy[0] = fremengridSet.estimateEntropy(fremengridSet.fremengrid[i]->id, observationPoint.x, observationPoint.y, 1.662, camera_range, times[0]);
+            fremengridSet.recalculate(fremengridSet.fremengrid[i]->id, times[0]);
+            slot_entropies[i] = entropy[0] = fremengridSet.estimateEntropy(fremengridSet.fremengrid[i]->id, observationPoint.x, observationPoint.y, 1.662, camera_range, times[0]);
 
-            //if(entropy[0]  = 0.0)
-                ROS_INFO("ID: %s\t Point: %f %f %f\t Entropy: %f", fremengridSet.fremengrid[i]->id,observationPoint.x, observationPoint.y,observationPoint.z,entropy[0]);
-
-            lastWheel += explorationRatio*entropy[0];
+            lastWheel += entropy[0];
             wheel[i] = lastWheel;
         }
 
@@ -379,6 +397,9 @@ int generateNewSchedule(uint32_t givenTime)//TODO -> save schedule in MongoDB
         p = 0;
         while (p <numNodes && randomNum > wheel[p]) p++;
         nodes[s] = p;
+        node_entropies[s] = slot_entropies[p];
+        if(node_entropies[s] >= max_entropy)
+            max_entropy = node_entropies[s];
     }
 
     /*save a file with a schedule TODO - save to mongo + interface calendar*/
@@ -391,19 +412,20 @@ int generateNewSchedule(uint32_t givenTime)//TODO -> save schedule in MongoDB
     if (file == NULL)ROS_ERROR("Could not open Schedule file %s.",fileName);
     for (int s=0;s<numSlots;s++)
     {
+        node_entropies[s] = node_entropies[s]/max_entropy;
         sprintf(dummy,"%i ",s);
         timeInfo = timeSlots[s];
         strftime(dummy, sizeof(dummy), "%Y-%m-%d_%H:%M:%S",localtime(&timeInfo));
-        fprintf(file,"%ld %s %s\n",timeInfo,dummy,fremengridSet.fremengrid[nodes[s]]->id);
-        ROS_INFO("Schedule: %ld %s %s\n",timeInfo,dummy,fremengridSet.fremengrid[nodes[s]]->id);
+        fprintf(file,"%ld %s %s %f\n",timeInfo,dummy,fremengridSet.fremengrid[nodes[s]]->id, node_entropies[s]);
+        ROS_INFO("Schedule: %ld %s %s %f\n",timeInfo,dummy,fremengridSet.fremengrid[nodes[s]]->id, node_entropies[s]);
     }
     fclose(file);
 }
 
-int generateSchedule(uint32_t givenTime)//TODO -> save schedule in MongoDB
+int generateSchedule(uint32_t givenTime)
 {
     char dummy[1000];
-    int numSlots = 24*3600/windowDuration;
+    int numSlots = 24*3600/tasKDuration;
     uint32_t midnight =  getMidnightTime(givenTime);
     if (debug)
     {
@@ -422,7 +444,8 @@ int generateSchedule(uint32_t givenTime)//TODO -> save schedule in MongoDB
     ROS_INFO("Retrieving schedule from %s",fileName);
     FILE* file = fopen(fileName,"r");
     if (file == NULL){
-        printf("Schedule file not found %s\n",fileName);
+        ROS_INFO("Schedule file not found %s\n",fileName);
+        ROS_INFO("Generating new schedule. Estimating entropies...");
         generateNewSchedule(givenTime);
         file = fopen(fileName,"r");
     }
@@ -430,13 +453,15 @@ int generateSchedule(uint32_t givenTime)//TODO -> save schedule in MongoDB
     /*read schedule file*/
     int checkReturn;
     uint64_t slot;
+    float norm_entropy;
     char nodeName[1000];
     char testTime[1000];
     for (int s=0;s<numSlots;s++){
-        checkReturn = fscanf(file,"%ld %s %s\n",&slot,dummy,nodeName);
+        checkReturn = fscanf(file,"%ld %s %s %f\n",&slot,dummy,nodeName, &norm_entropy);
         timeInfo = slot;
+        node_entropies[s] = norm_entropy;
         strftime(testTime, sizeof(testTime), "%Y-%m-%d_%H:%M:%S",localtime(&timeInfo));
-        if (checkReturn != 3) 			ROS_ERROR("Exploration schedule file %s is corrupt at line %i (wrong number of entries %i)!",dummy,s,checkReturn);
+        if (checkReturn != 4) 			ROS_ERROR("Exploration schedule file %s is corrupt at line %i (wrong number of entries %i)!",dummy,s,checkReturn);
         else if (slot != timeSlots[s]) 		ROS_ERROR("Exploration schedule file %s is corrupt at line %i (ROS time mismatch)!",dummy,s);
         else if (strcmp(testTime,dummy)!=0)	ROS_ERROR("Exploration schedule file %s is corrupt at line %i (time in seconds does not match string time)!",dummy,s);
         else {
@@ -452,16 +477,16 @@ int getNextTimeSlot(int lookAhead)
     char dummy[1000];
     char testTime[1000];
     time_t timeInfo;
-    int numSlots = 24*3600/windowDuration;
+    int numSlots = 24*3600/tasKDuration;
     ros::Time currentTime = ros::Time::now();
-    uint32_t givenTime = currentTime.sec+lookAhead*windowDuration+rescheduleCheckTime;
+    uint32_t givenTime = currentTime.sec+lookAhead*tasKDuration+rescheduleCheckTime;
     uint32_t midnight = getMidnightTime(givenTime);
     if (timeSlots[0] != midnight)
     {
         ROS_INFO("Generating new schedule!");
         generateSchedule(givenTime);
     }
-    int currentSlot = (givenTime-timeSlots[0])/windowDuration;
+    int currentSlot = (givenTime-timeSlots[0])/tasKDuration;
     //ROS_INFO("Time %i - slot %i: going to node %i(%s).",currentTime.sec-midnight,currentSlot,nodes[currentSlot],fremengridSet.frelements[nodes[currentSlot]]->id);
     if (debug)
     {
@@ -483,172 +508,74 @@ int createTask(int slot)
     time_t timeInfo = timeSlots[slot];
     strftime(testTime, sizeof(testTime), "%Y-%m-%d_%H:%M:%S",localtime(&timeInfo));
 
-    int chargeNodeID = fremengridSet.find("ChargingPoint");
-    /*charge when low on battery*/
-    if (chargeNodeID != -1 && forceCharging){
-        nodes[slot]=chargeNodeID;
-        ROS_INFO("Task %i should be changed to charging.",taskIDs[slot]);
-    }
-
-    int lastNodeID = fremengridSet.find(nodeName.c_str());
-    if (lastNodeID != -1 && (timeSlots[slot] - lastInteractionTime) < interactionTimeout || info >entropyThreshold)
+    bool critical = false;
+    //if critical...
+    for(int i = 0; i < critical_nodes.size(); i++)
     {
-        nodes[slot]=lastNodeID;
-        ROS_INFO("Task %i was changed to last waypoint - information gain was %f.",taskIDs[slot],info);
+        if(strcmp(fremengridSet.fremengrid[nodes[slot]]->id, critical_nodes[i].c_str()) == 0)
+        {
+            critical = true;
+            break;
+        }
+
     }
 
-    mongodb_store_msgs::StringPair taskArg;
-    taskArg.second = "complete";
-    strands_executive_msgs::Task task;
-    task.action = "do_sweep";
-    task.start_node_id = fremengridSet.fremengrid[nodes[slot]]->id;
-    task.end_node_id = fremengridSet.fremengrid[nodes[slot]]->id;
-    task.priority = taskPriority;
-    task.arguments.push_back(taskArg);
-
-    task.start_after =  ros::Time(timeSlots[slot]+taskStartDelay,0);
-    task.end_before = ros::Time(timeSlots[slot]+windowDuration - 2,0);
-    task.max_duration = task.end_before - task.start_after;
-    strands_executive_msgs::AddTask taskAdd;
-    taskAdd.request.task = task;
-    if (taskAdder.call(taskAdd))
+    if(critical)
     {
-        sprintf(dummy,"%s for timeslot %i on %s, between %i and %i.",fremengridSet.fremengrid[nodes[slot]]->id,slot,testTime,task.start_after.sec,task.end_before.sec);
-        ROS_INFO("Task %ld created at %s ", taskAdd.response.task_id,dummy);
-        taskIDs[slot] = taskAdd.response.task_id;
-    }
+        mongodb_store_msgs::StringPair taskArg;
+        taskArg.second = "complete";
+        strands_executive_msgs::Task task;
+        task.action = "do_sweep";
+        task.start_node_id = fremengridSet.fremengrid[nodes[slot]]->id;
+        task.end_node_id = fremengridSet.fremengrid[nodes[slot]]->id;
+        task.priority = taskPriority;
+        task.arguments.push_back(taskArg);
 
-}
-
-/*drops and reschedules the following task on special conditions*/
-int modifyNextTask(int slot)
-{
-    int lastNodeID = fremengridSet.find(nodeName.c_str());
-    int chargeNodeID = fremengridSet.find("ChargingPoint");
-    bool changeTaskFlag = false;
-    /*charge when low on battery*/
-    if (chargeNodeID != -1 && forceCharging){
-        nodes[slot]=chargeNodeID;
-        changeTaskFlag = true;
-        ROS_INFO("Task %i should be changed to charging.",taskIDs[slot]);
-    }
-    /*do not run away during interactions*/
-    if (lastNodeID != -1 && (timeSlots[slot] - lastInteractionTime) < interactionTimeout || info >25000)
-    {
-        nodes[slot]=lastNodeID;
-        changeTaskFlag = true;
-        ROS_INFO("Task %i should be changed to last waypoint.",taskIDs[slot]);
-    }
-    /*do not run away during interactions*/
-    if (changeTaskFlag)
-    {
-        strands_executive_msgs::CancelTask taskCanc;
-        taskCanc.request.task_id = taskIDs[slot];
-        if (taskCancel.call(taskCanc)){
-            if (taskCanc.response.cancelled){
-                ROS_INFO("Task %i cancelled, replanning.",taskIDs[slot]);
-                createTask(slot);
-            }else{
-                ROS_INFO("Scheduler refuses to cancel task %i.",taskIDs[slot]);
-            }
+        task.start_after =  ros::Time(timeSlots[slot]+taskStartDelay,0);
+        task.end_before = ros::Time(timeSlots[slot]+tasKDuration - 2,0);
+        task.max_duration = task.end_before - task.start_after;
+        strands_executive_msgs::AddTask taskAdd;
+        taskAdd.request.task = task;
+        if (taskAdder.call(taskAdd))
+        {
+            sprintf(dummy,"%s for timeslot %i on %s, between %i and %i.",fremengridSet.fremengrid[nodes[slot]]->id,slot,testTime,task.start_after.sec,task.end_before.sec);
+            ROS_INFO("Task %ld created at %s (ground truth node).", taskAdd.response.task_id,dummy);
+            taskIDs[slot] = taskAdd.response.task_id;
         }
     }
 }
 
 /*saves grid to database*/
-int saveGridDB(const char *name)
+int saveGrid(string name)
 {
-    int gridIndex = fremengridSet.find(name);
+    int gridIndex = fremengridSet.find(name.c_str());
 
     if(gridIndex < 0)
     {
-        ROS_ERROR("%s grid not found!", name);
+        ROS_ERROR("%s grid not found!", name.c_str());
         return -1;
     }
     else
     {
 
-        /*Fremen grid*/
-        strands_exploration_msgs::FremenGrid grid_msg;
+        time_t timeNow;
+        time(&timeNow);
+        char timeStr[100];
+        char fileName[1000];
+        char fileNameee[1000];
+        strftime(timeStr, sizeof(timeStr), "%Y-%m-%d_%H:%M",localtime(&timeNow));
+        sprintf(fileName,"%s/%s-%s.3dmap", gridsDirectory.c_str(), name.c_str(),timeStr);
+        //ROS_INFO("%s", fileName);
+        fremengridSet.fremengrid[gridIndex]->saveSmart(fileName, false, 0);
 
-        //Waypoint name
-        grid_msg.waypoint = name;
-        //Grid dimensions:
-        grid_msg.dimensions[0] = fremengridSet.fremengrid[gridIndex]->xDim;
-        grid_msg.dimensions[1] = fremengridSet.fremengrid[gridIndex]->yDim;
-        grid_msg.dimensions[2] = fremengridSet.fremengrid[gridIndex]->zDim;
-        //Grid origin
-        grid_msg.origin.x = fremengridSet.fremengrid[gridIndex]->oX;
-        grid_msg.origin.y = fremengridSet.fremengrid[gridIndex]->oY;
-        grid_msg.origin.z = fremengridSet.fremengrid[gridIndex]->oZ;
-        //resolution
-        grid_msg.resolution = fremengridSet.fremengrid[gridIndex]->resolution;
-        //Last information gain value (useful to evaluate the strategy performance)
-        grid_msg.last_info = fremengridSet.fremengrid[gridIndex]->obtainedInformationLast;
-        //Predicted information gain
-        grid_msg.predicted_info = fremengridSet.fremengrid[gridIndex]->obtainedInformationPredicted;
-        grid_msg.numcells = fremengridSet.fremengrid[gridIndex]->numCells;
+        sprintf(fileNameee,"%s/%s.txt", gridsDirectory.c_str(), name.c_str());
+        FILE* file = fopen(fileNameee,"w+");
+        if (file == NULL)
+            ROS_ERROR("Could not open waypoint file %s.",fileNameee);
 
-        /*Frelement*/
-        strands_exploration_msgs::Frelement frelement_msg;
-
-        int frk;
-
-        /*SFrelement*/
-        for(int i = 0; i < grid_msg.numcells; i++)
-        {
-            frk = fremengridSet.fremengrid[gridIndex]->frelements[i].frk;
-
-            frelement_msg.gain = fremengridSet.fremengrid[gridIndex]->frelements[i].gain;
-            frelement_msg.measurements = fremengridSet.fremengrid[gridIndex]->frelements[i].measurements;
-            frelement_msg.first_time = fremengridSet.fremengrid[gridIndex]->frelements[i].firstTime;
-            frelement_msg.last_time = fremengridSet.fremengrid[gridIndex]->frelements[i].lastTime;
-
-            if(frelement_msg.measurements == 0 ||frelement_msg.gain == 0)
-                frelement_msg.frequencies = 0;
-            else
-            {
-                frelement_msg.frequencies = frk;
-
-                for(int j = 0; j < frelement_msg.frequencies; j++)
-                {
-                    frelement_msg.elements[i].rstates = fremengridSet.fremengrid[gridIndex]->frelements[i].allFrelements[j].realStates;
-                    frelement_msg.elements[i].istates = fremengridSet.fremengrid[gridIndex]->frelements[i].allFrelements[j].imagStates;
-                    frelement_msg.elements[i].rbalance = fremengridSet.fremengrid[gridIndex]->frelements[i].allFrelements[j].realBalance;
-                    frelement_msg.elements[i].ibalance = fremengridSet.fremengrid[gridIndex]->frelements[i].allFrelements[j].imagBalance;
-                }
-            }
-
-            grid_msg.frelements.push_back(frelement_msg);
-            frelement_msg.elements.clear();
-        }
-
-
-        ros::Time currentTime = ros::Time::now();
-        lastInteractionTime = currentTime.sec;
-        grid_msg.time = currentTime.sec;
-
-        string id(messageStore->insertNamed(collectionName, grid_msg));
-        ROS_INFO("FremenGrid %s inserted with id %s", name, id.c_str());
+        fprintf(file,"%s %s\n",name.c_str(), fileName);
+        fclose(file);
     }
-
-}
-
-/*retrieve the latest grid from the database and adds it to the system*/
-int loadGridDB(const char *name)
-{
-
-    vector< boost::shared_ptr<strands_exploration_msgs::FremenGrid> > results;
-    messageStore->queryNamed<strands_exploration_msgs::FremenGrid>(name,results,false);
-
-    //    BOOST_FOREACH( boost::shared_ptr<topological_exploration::FremenGrid> p,  results)
-    //    {
-    //        time_t timeInfo = p->time;
-    //        strftime(testTime, sizeof(testTime), "%Y-%m-%d_%H:%M:%S",localtime(&timeInfo));
-    //        ROS_INFO("There were %d interaction at %s at waypoint %s.",p->number,testTime,p->waypoint.c_str());
-    //    }
-
-
 }
 
 int removeGrid(const char *name)
@@ -663,12 +590,17 @@ int removeGrid(const char *name)
 void imageCallback(const sensor_msgs::ImageConstPtr& msg)
 {
 
-    //get grid index according to the waypoint
-    gridIndex = fremengridSet.find(nodeName.c_str());
+    if(current_measurement == 0)
+    {
+        //get grid index according to the waypoint
+        gridIndex = fremengridSet.find(nodeName.c_str());
+        ROS_INFO("Waypoint %s and grid index %i\n", nodeName.c_str(), gridIndex);
+    }
+
 
     timestamp = msg->header.stamp.sec;
 
-    ROS_INFO("Add depth called at Waypoint %s and grid index %i\n", nodeName.c_str(), gridIndex);
+    ROS_INFO("Add depth called at %s and grid index %i.", nodeName.c_str(), gridIndex);
 
     //stores the depth image for easier manipultation
     float depth = msg->data[640*480+640]+256*msg->data[640*480+640+1];
@@ -738,7 +670,6 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
         }
 
         //incorporate depth image
-        //incorporating = true;
         CTimer timer;
         timer.reset();
         timer.start();
@@ -774,15 +705,30 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg)
             }
         }
 
-        //int lastInfo = fremengridSet.fremengrid[gridIndex]->obtainedInformationLast;
-        ROS_INFO("Depth image to point cloud took %i ms,",timer.getTime());
+        int lastInfo = fremengridSet.fremengrid[gridIndex]->obtainedInformationLast;
+        ROS_INFO("Depth image added to the grid (%d/%d)", current_measurement, sweep_measurements - 1);
         fremengridSet.fremengrid[gridIndex]->incorporate(x,y,z,d,len,timestamp);
+        int newInfo = fremengridSet.fremengrid[gridIndex]->obtainedInformationLast;
+        ROS_INFO("last: %d new: %d", lastInfo, newInfo);
     }
 
-    std_msgs::ColorRGBA color_aux;
-    color_aux.g = color_aux.a = 1.0;
-    color_aux.r = color_aux.b = 0.0;
-    publishGrid(nodeName.c_str(), 0, 0.9, 1.0, 0, 0 , nodeName.c_str(), false, color_aux);
+
+
+    if(current_measurement == sweep_measurements-1)
+    {
+        std_msgs::ColorRGBA color_aux;
+        color_aux.g = color_aux.a = 1.0;
+        color_aux.r = color_aux.b = 0.0;
+        ROS_INFO("Sweep complete. Publishing and saving 3D grid...");
+        int numvoxels = publishGrid(nodeName.c_str(), 0, 0.9, 1.0, 0, 0, nodeName.c_str(), false, color_aux);
+        ROS_INFO("%d voxels published.", numvoxels);
+        saveGrid(nodeName);
+
+
+        current_measurement = 0;
+    }
+    else
+        current_measurement++;
 }
 
 
@@ -798,19 +744,28 @@ int main(int argc,char* argv[])
     ros::init(argc, argv, "spatiotemporal_exploration");
     ros::NodeHandle n("~");
 
-    //initialize datacentre
-    messageStore = new MessageStoreProxy(n,"message_store");
-
-
     //load parameters
-    n.param<std::string>("/collectionName", collectionName, "FremenGrid");
-    n.param<std::string>("/scheduleDirectory", scheduleDirectory, "/localhome/strands/schedules");// TODO -> save in mongoDB
-    n.param("/taskPriority", taskPriority,1);
-    n.param("/verbose", debug,false);
-    n.param("/resolution", cellSize, 0.1);
-    n.param("/dimX", dimX, 100);
-    n.param("/dimY", dimY, 100);
-    n.param("/dimZ", dimZ, 40);
+    n.param<std::string>("sweep_type", sweep_type, "complete");
+    n.param<std::string>("collection_name", collectionName, "FremenGrid");
+    n.param<std::string>("schedule_directory", scheduleDirectory, "/localhome/strands/schedules");
+    n.param<std::string>("grids_directory", gridsDirectory, "/localhome/strands/3dmaps");
+    n.param<std::string>("tag_ground_node", ground_node, "ExplorationGround");
+    n.param<std::string>("tag_node", normal_node, "Exploration");
+    n.param("verbose", debug,false);
+    n.param("resolution", cellSize, 0.1);
+    n.param("dimX", dimX, 100);
+    n.param("dimY", dimY, 100);
+    n.param("dimZ", dimZ, 40);
+    n.param("taskDuration", taskDuration, 1200);
+
+    if(sweep_type.compare("complete") == 0)
+        sweep_measurements = 51;
+    else if(sweep_type.compare("medium") == 0)
+        sweep_measurements = 17;
+    else if(sweep_type.compare("short") == 0)
+        sweep_measurements = 9;
+    else if(sweep_type.compare("shortest") == 0)
+        sweep_measurements = 6;
 
 
     //initialize dynamic reconfiguration feedback
@@ -821,43 +776,36 @@ int main(int argc,char* argv[])
 
     /*** subscribers ***/
 
-    //to get the current node
-    currentNodeSub = n.subscribe("/closest_node", 1, getCurrentNode);
     //to get the list of nodes
     mapSub = n.subscribe("/topological_map", 1, getTopologicalMap);
-    //to determine if charging is required
-    batterySub = n.subscribe("battery_state", 1, batteryCallBack);
 
 
     /*** publishers ***/
-
     //to visualize the 3D grid markers in rviz
-    grid_markers_pub = n.advertise<visualization_msgs::Marker>("/visCells", 100);
-    //to publish the amount of information obtained ater a sweep
-    information_pub  = n.advertise<std_msgs::Float64>("/obtainedInformation", 100);
+    grid_markers_pub = n.advertise<visualization_msgs::Marker>("visualize_grid", 100);
 
 
     /*** services ***/
-
+    //to visualize 3D grid
+    ros::ServiceServer visualize_grid = n.advertiseService("view_grid", visualizeGrid);
+    //exploration routine
+    ros::ServiceServer routine_service = n.advertiseService("/exploration_taks_services/edge_exp_srv", explorationRoutine);
     //to get relevant nodes
     nodeListClient = n.serviceClient<strands_navigation_msgs::GetTaggedNodes>("/topological_map_manager/get_tagged_nodes");
     //to create task objects
     taskAdder = n.serviceClient<strands_executive_msgs::AddTask>("/task_executor/add_task");
-    //to remove tasks from the schedule
-    taskCancel = n.serviceClient<strands_executive_msgs::CancelTask>("/task_executor/cancel_task");
-    //to visualize 3D grid w/ dynamics
-    ros::ServiceServer visualize_grid = n.advertiseService("/view_grid", visualizeGrid);
+    //save grid
+//    save_service = n.serviceClient<strands_exploration_msgs::SaveGrid>("/topological_exploration/save_grid");
+
 
 
     /*** tf listener ***/
-
     //to convert depth image from optical frame to map frame
     tf_listener = new tf::TransformListener();
     ros::Time now = ros::Time(0);
     tf_listener->waitForTransform("/head_xtion_depth_optical_frame","/map",now, ros::Duration(10.0));
 
     /*** image transport ***/
-
     //to subscribe the depth image and add it to the grid (ray casting)
     image_transport::ImageTransport imageTransporter(n);
     image_transport::Subscriber image_subscriber = imageTransporter.subscribe("/local_metric_map/depth/depth_filtered", 50, imageCallback);
@@ -865,23 +813,27 @@ int main(int argc,char* argv[])
     sleep(0.5);
 
 
-    //get topological map nodes tagged as Exploration
-    int relevant_nodes = getRelevantNodes();
-    if (relevant_nodes < 0)
+
+    //get critical and non critical nodes
+    int num_critical_nodes = getRelevantNodes(ground_node, &critical_nodes);
+    int num_exploration_nodes = getRelevantNodes(normal_node, &exploration_nodes);
+
+    if (num_critical_nodes < 0)
     {
         ROS_ERROR("Topological navigation does not report about tagged nodes. Is it running?");
         return -1;
     }
-    else if (relevant_nodes == 0)
-    {
-        ROS_ERROR("There are no Info-Terminal relevant nodes in the topological map ");
-        return -1;
-    }
+
+    retrieveGrids();
+
+    //to get the current node
+    currentNodeSub = n.subscribe("/closest_node", 1, getCurrentNode);
 
     //generate schedule
     ros::Time currentTime = ros::Time::now();
     generateSchedule(currentTime.sec);
 
+    ros::spinOnce();
     maxTaskNumber = 1;
     while (ros::ok())
     {
@@ -896,7 +848,7 @@ int main(int argc,char* argv[])
         if (numCurrentTasks < maxTaskNumber)
         {
             lastTimeSlot=currentTimeSlot;
-            int a=getNextTimeSlot(numCurrentTasks);
+            int a = getNextTimeSlot(numCurrentTasks);
             if (a >= 0){
                 createTask(a);
                 numCurrentTasks++;
