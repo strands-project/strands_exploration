@@ -16,7 +16,7 @@ class TaskGenerator(object):
         self.tasks_per_trigger_dict={'edge_exploration':10, 'fremen_grid_exploration':8, 'activity_exploration':1} #TODO: make param
         self.default_tasks_per_trigger=2
         
-        self.special_tasks_priorities={'activity_exploration':10}
+        self.task_priorities={'activity_exploration':10}
         self.default_task_priority=0
         
         self.services_manager=ExplorationServicesManager()
@@ -48,7 +48,12 @@ class TaskGenerator(object):
             else:
                 n_tasks=min(len(current_task_list), self.default_tasks_per_trigger)
             for i in range(0, n_tasks):
-                tasks_to_add.append(self.pick_task(current_task_list))
+                chosen_task=self.pick_task(current_task_list)
+                if self.task_priorities.has_key(task_type):
+                    chosen_task.priority=self.task_priorities[task_type]
+                else:
+                    chosen_task.priority=self.default_task_priority
+                tasks_to_add.append(chosen_task)
         shuffle(tasks_to_add)
         return [task.task_def for task in tasks_to_add]
     
