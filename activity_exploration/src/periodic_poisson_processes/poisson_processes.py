@@ -78,7 +78,7 @@ class PoissonProcesses(object):
                     result[key] = poisson.get_rate()
             else:
                 result[key] = poisson.scale
-        start_time = start_time + self.minute_increment
+            start_time = start_time + self.minute_increment
         return result
 
     def _convert_time(self, start_time):

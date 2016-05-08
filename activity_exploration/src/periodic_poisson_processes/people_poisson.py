@@ -111,7 +111,7 @@ class PoissonProcessesPeople(object):
                 if is_intersected(self.regions[observation.region_id], points):
                     if trajectory.end_time >= observation.start_from:
                         count += 1
-                if trajectory.end_time > self._start_time and ind not in traj_inds:
+                if trajectory.end_time >= self._start_time and ind not in traj_inds:
                     traj_inds.append(ind)
             if count > 0 or observation.duration.secs >= 59:
                 count = self._extrapolate_count(observation.duration, count)

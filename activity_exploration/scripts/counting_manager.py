@@ -91,7 +91,7 @@ class PeopleCountingManager(object):
 
     def _check_visit_plan(self, start_time, end_time, visit_plan):
         if random.random() > 0.7:
-            rospy.loginfo("Changing WayPoints to visit to check unobserved places...")
+            rospy.loginfo("Changing WayPoints to visit unobserved places...")
             scales = self.poisson_proc.retrieve_from_to(
                 start_time, end_time, True
             )
@@ -113,7 +113,7 @@ class PeopleCountingManager(object):
         rates_consent = self.poisson_consent.retrieve_from_to(
             msg.start_time, msg.end_time
         )
-        if sum(rates_consent.values()) > rospy.get_param("~consent_rate", 0.8):
+        if sum(rates_consent.values()) > rospy.get_param("~consent_rate", 1.5):
             rospy.loginfo("Waypoint's order: %s is shuffled" % str(task.task_definition))
             random.shuffle(task.task_definition)
         return task
