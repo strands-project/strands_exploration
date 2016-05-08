@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 
+import copy
+import time
 import rospy
+import datetime
+import threading
 from periodic_poisson_processes.poisson_processes import PeriodicPoissonProcesses
 
 
@@ -11,10 +15,17 @@ class PoissonWrapper(object):
         window=10, increment=1, periodic_cycle=10080
     ):
         rospy.loginfo("Initializing poisson wrapper...")
+        self._acquired = False
         # for each roi create PoissonProcesses
         rospy.loginfo("Time window is %d minute with increment %d minute" % (window, increment))
-        self.time_window = window
-        self.time_increment = increment
+        temp = datetime.datetime.fromtimestamp(rospy.Time.now().secs)
+        temp = datetime.datetime(
+            temp.year, temp.month, temp.day, temp.hour, temp.minute, 0
+        )
+        self._start_time = rospy.Time(time.mktime(temp.timetuple()))
+        self._stored_value = list()
+        self.time_window = rospy.Duration(window*60)
+        self.time_increment = rospy.Duration(increment*60)
         rospy.loginfo("Creating a periodic cycle every %d minutes" % periodic_cycle)
         self.process = PeriodicPoissonProcesses(window, increment, periodic_cycle)
         rospy.loginfo(
@@ -27,6 +38,35 @@ class PoissonWrapper(object):
         self.topic_msg = topic_msg
         self.load_from_db()
         rospy.Subscriber(topic, topic_msg, self._cb, None, 10)
+        rospy.sleep(0.1)
+        self._thread = threading.Thread(target=self._update)
+        self._thread.start()
+
+    def _update(self):
+        while not rospy.is_shutdown():
+            count = 0
+            delta = (rospy.Time.now() - self._start_time)
+            if len(self._stored_value) > 0 and delta > self.time_window:
+                stored_inds = list()
+                temp = copy.deepcopy(self._stored_value)
+                for i, j in enumerate(temp):
+                    if j[0] >= self._start_time and j[0] < self._start_time + self.time_window:
+                        count += j[1]
+                    if j[0] >= self._start_time + self.time_increment and i not in stored_inds:
+                        stored_inds.append(i)
+                self.process.update(self._start_time, count)
+                self._store(self._start_time)
+                self._start_time = self._start_time + self.time_increment
+                # updating stored_value
+                n = len(temp)
+                temp = [temp[i] for i in stored_inds]
+                # mutex lock
+                while self._acquired:
+                    rospy.sleep(0.01)
+                self._acquired = True
+                self._stored_value = temp + self._stored_value[n:]
+                self._acquired = False
+            rospy.sleep(0.1)
 
     def _cb(self, msg):
         current_time = rospy.Time.now()
@@ -36,8 +76,12 @@ class PoissonWrapper(object):
             count = sum([1 for i in value if value == self.value])
         elif self.value == value:
             count = 1
-        self.process.update(current_time, count)
-        self._store(current_time)
+        # mutex lock
+        while self._acquired:
+            rospy.sleep(0.01)
+        self._acquired = True
+        self._stored_value.append((current_time, count))
+        self._acquired = False
 
     def _store(self, start_time):
         meta = {

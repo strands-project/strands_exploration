@@ -28,6 +28,12 @@ class OnlineRegionObservation(object):
         self.regions, self.soma_map = get_soma_info(soma_config)
         self.soma_config = soma_config
         self.intersected_regions = list()
+        # draw robot view cone
+        self._pub = rospy.Publisher("%s/view_cone" % name, Marker, queue_size=10)
+        # publish the result of the observation
+        self._pub_reg = rospy.Publisher("%s/observation" % name, RegionObservationTime, queue_size=10)
+        self._msgs = list()
+        self._thread = threading.Thread(target=self.publish_msgs)
         # get robot sight
         self._pan_orientation = 0.0
         rospy.loginfo("Subcribe to /robot_pose and /ptu/state...")
@@ -37,12 +43,6 @@ class OnlineRegionObservation(object):
         # db for RegionObservation
         rospy.loginfo("Create collection db as %s..." % coll)
         self._db = MessageStoreProxy(collection=coll)
-        # draw robot view cone
-        self._pub = rospy.Publisher("%s/view_cone" % name, Marker, queue_size=10)
-        # publish the result of the observation
-        self._pub_reg = rospy.Publisher("%s/observation" % name, RegionObservationTime, queue_size=10)
-        self._msgs = list()
-        self._thread = threading.Thread(target=self.publish_msgs)
 
     def _ptu_cb(self, ptu):
         self._pan_orientation = ptu.position[ptu.name.index('pan')]
