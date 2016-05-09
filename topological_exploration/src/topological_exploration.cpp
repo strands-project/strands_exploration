@@ -808,8 +808,6 @@ int main(int argc,char* argv[])
     image_transport::ImageTransport imageTransporter(n);
     image_transport::Subscriber image_subscriber = imageTransporter.subscribe("/local_metric_map/depth/depth_filtered", 50, imageCallback);
     ros::spinOnce();
-    sleep(0.5);
-
 
     //get critical and non critical nodes
     int num_critical_nodes = getRelevantNodes(ground_node, &critical_nodes);
