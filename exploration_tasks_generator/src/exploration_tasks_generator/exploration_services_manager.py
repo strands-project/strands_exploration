@@ -24,6 +24,7 @@ class ExplorationServicesManager(object):
         exploration_service_list=[rospy.ServiceProxy(name, GetExplorationTasks) for name in exploration_service_names]
         for (name, service) in zip(exploration_service_names, exploration_service_list):
             try:
+                rospy.loginfo("Calling exploration service " + name)
                 response=service(start_time, end_time)
                 service_name=name.split('/')[-1]
                 print service_name
@@ -34,11 +35,11 @@ class ExplorationServicesManager(object):
                 else:
                     rospy.logwarn("No method defined to create tasks for service " + name)
             except rospy.ServiceException, e:
-                rospy.logwarn("Error calling service " + name + ". Skipping...")
+                rospy.logwarn("Error calling service " + name + ":" + str(e) +". Skipping...")
         return task_list
     
         
-    def create_tasks_for_edge_exp_srv(self, definitions, scores, start_time, end_time):
+    def create_tasks_for_get_edge_exploration(self, definitions, scores, start_time, end_time):
         res=[]
         for (edge, score) in zip(definitions, scores):
             [start_wp, end_wp]=edge.split("_")
@@ -67,3 +68,19 @@ class ExplorationServicesManager(object):
         return res     
             
 
+    def create_tasks_for_activity_exp_srv(self, definitions, scores, start_time, end_time):
+        res=[]
+        for (wp, score) in zip(definitions, scores):
+            max_duration=rospy.Duration(10*60)
+            task=Task(action= 'wait_action',
+                      start_node_id=wp,
+                      end_node_id=wp,
+                      start_after=start_time,
+                      end_before=end_time,
+                      max_duration=max_duration)
+            tu.add_time_argument(task, rospy.Time())
+            tu.add_duration_argument(task, max_duration)
+            res.append(ExplorationTask(task_type="activity_exploration",
+                                       score=score,
+                                       task_def=task))
+        return res
