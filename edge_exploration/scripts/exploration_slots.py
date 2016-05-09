@@ -58,6 +58,7 @@ class exploration_slots(object):
                     val["time"]=0.0
                     val['samples']= 0
                     val['score']= 0.0
+                    val['prob']= 0.0
                     self.eids.append(val)
         fdbmsg = 'Done. %d edges found' %len(self.edgid)
         rospy.loginfo(fdbmsg)
@@ -85,14 +86,15 @@ class exploration_slots(object):
 
         task_time=0
         for i in results:
-            print task_time, i['time'].secs*2
-            task_time+=(i['time'].secs*2)
-            if task_time < explotime.secs:
-                print i['edge_id'], i['samples'], i['time'].secs, i['entropy'], i['score']
-                exptsk.append(i['edge_id'])
-                tskscr.append(i['score'])
-            else:
-                break
+            if i['probs']>0.3:
+                print task_time, i['time'].secs*2
+                task_time+=(i['time'].secs*2)
+                if task_time < explotime.secs:
+                    print i['edge_id'], i['samples'], i['time'].secs, i['entropy'], i['score'], i['probs']
+                    exptsk.append(i['edge_id'])
+                    tskscr.append(i['score'])
+                else:
+                    break
         
         return exptsk, tskscr
 
@@ -137,7 +139,8 @@ class exploration_slots(object):
         for i in range(len(estimations.edge_ids)):
             ind=self.edgid.index(estimations.edge_ids[i])
             self.eids[ind]['time']= estimations.durations[i]
-            
+            self.eids[ind]['probs']= estimations.probs[i]
+
         for i in range(len(self.eids)):
             query =  {'topological_map': self.top_map.pointset, 'edge_id':self.eids[i]['edge_id']}
             self.eids[i]['samples'] = collection.find(query).count()
