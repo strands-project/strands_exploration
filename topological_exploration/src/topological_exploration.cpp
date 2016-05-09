@@ -532,7 +532,7 @@ int getNextTimeSlot(int lookAhead)
         generateSchedule(givenTime);
     }
     int currentSlot = (givenTime-timeSlots[0])/taskDuration;
-    ROS_INFO("Time %i - slot %i: going to node %i(%s).",currentTime.sec-midnight,currentSlot,nodes[currentSlot],fremengridSet->fremengrid[nodes[currentSlot]]->id);
+    //ROS_INFO("Time %i - slot %i: going to node %i(%s).",currentTime.sec-midnight,currentSlot,nodes[currentSlot],fremengridSet->fremengrid[nodes[currentSlot]]->id);
     if (debug)
     {
         timeInfo = givenTime;
