@@ -36,8 +36,7 @@ class OnlineRegionObservation(object):
         self._thread = threading.Thread(target=self.publish_msgs)
         # get robot sight
         self._pan_orientation = 0.0
-        rospy.loginfo("Subcribe to /robot_pose and /ptu/state...")
-        rospy.Subscriber("/robot_pose", Pose, self._robot_cb, None, 10)
+        rospy.loginfo("Subcribe to /ptu/state...")
         rospy.Subscriber("/ptu/state", JointState, self._ptu_cb, None, 10)
         self.region_observation_duration = dict()
         # db for RegionObservation
@@ -46,6 +45,8 @@ class OnlineRegionObservation(object):
 
     def _ptu_cb(self, ptu):
         self._pan_orientation = ptu.position[ptu.name.index('pan')]
+        rospy.loginfo("Subcribe to /robot_pose...")
+        rospy.Subscriber("/robot_pose", Pose, self._robot_cb, None, 10)
 
     def _robot_cb(self, pose):
         robot_sight, arr_robot_sight = robot_view_cone(pose, self._pan_orientation)
