@@ -11,13 +11,8 @@ CFremenGridSet::CFremenGridSet()
 
 CFremenGridSet::~CFremenGridSet()
 {
-    printf("deleting grids1\n");
-    for (int i = numFremenGrids-1; i > 0; i--)
-    {
-        printf("deleting grid %i/%i\n", i, numFremenGrids - 1);
+    for (int i = 0; i < numFremenGrids; i--)
         delete fremengrid[i];
-    }
-    printf("deleting grids2\n");
 }
 
 int CFremenGridSet::add(const char* name, float originX,float originY,float originZ,int dimX,int dimY,int dimZ,float cellSize)

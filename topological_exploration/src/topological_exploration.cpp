@@ -340,6 +340,51 @@ void retrieveGrids(void)
     }
 }
 
+/*creates a task for the given slot*/
+int createTask(int slot)
+{
+    char dummy[1000];
+    char testTime[1000];
+    time_t timeInfo = timeSlots[slot];
+    strftime(testTime, sizeof(testTime), "%Y-%m-%d_%H:%M:%S",localtime(&timeInfo));
+
+    bool critical = false;
+    //if critical...
+    for(int i = 0; i < critical_nodes.size(); i++)
+    {
+        if(strcmp(fremengridSet->fremengrid[nodes[slot]]->id, critical_nodes[i].c_str()) == 0)
+        {
+            critical = true;
+            break;
+        }
+
+    }
+
+    if(critical)
+    {
+        mongodb_store_msgs::StringPair taskArg;
+        taskArg.second = "complete";
+        strands_executive_msgs::Task task;
+        task.action = "do_sweep";
+        task.start_node_id = fremengridSet->fremengrid[nodes[slot]]->id;
+        task.end_node_id = fremengridSet->fremengrid[nodes[slot]]->id;
+        task.priority = taskPriority;
+        task.arguments.push_back(taskArg);
+
+        task.start_after =  ros::Time(timeSlots[slot]+taskStartDelay,0);
+        task.end_before = ros::Time(timeSlots[slot]+taskDuration - 2,0);
+        task.max_duration = task.end_before - task.start_after;
+        strands_executive_msgs::AddTask taskAdd;
+        taskAdd.request.task = task;
+        if (taskAdder.call(taskAdd))
+        {
+            sprintf(dummy,"%s for timeslot %i on %s, between %i and %i.",fremengridSet->fremengrid[nodes[slot]]->id,slot,testTime,task.start_after.sec,task.end_before.sec);
+            ROS_INFO("Task %ld created at %s (ground truth node).", taskAdd.response.task_id,dummy);
+            taskIDs[slot] = taskAdd.response.task_id;
+        }
+    }
+}
+
 /*generates a schedule and saves it in a file*/
 int generateNewSchedule(uint32_t givenTime)//TODO -> save schedule in MongoDB
 {
@@ -463,7 +508,10 @@ int generateSchedule(uint32_t givenTime)
         else if (strcmp(testTime,dummy)!=0)	ROS_ERROR("Exploration schedule file %s is corrupt at line %i (time in seconds does not match string time)!",dummy,s);
         else {
             nodes[s] = fremengridSet->find(nodeName);
-            if (nodes[s] < 0) ROS_ERROR("Exploration schedule file %s is corrupt at line %i (node %s is not tagged as InfoTerminal in topoogical map)!",dummy,s,nodeName);
+            if (nodes[s] < 0)
+                ROS_ERROR("Exploration schedule file %s is corrupt at line %i (node %s is not tagged as InfoTerminal in topoogical map)!",dummy,s,nodeName);
+            else
+                createTask(s);
         }
     }
     fclose(file);
@@ -484,7 +532,7 @@ int getNextTimeSlot(int lookAhead)
         generateSchedule(givenTime);
     }
     int currentSlot = (givenTime-timeSlots[0])/taskDuration;
-    //ROS_INFO("Time %i - slot %i: going to node %i(%s).",currentTime.sec-midnight,currentSlot,nodes[currentSlot],fremengridSet->frelements[nodes[currentSlot]]->id);
+    ROS_INFO("Time %i - slot %i: going to node %i(%s).",currentTime.sec-midnight,currentSlot,nodes[currentSlot],fremengridSet->fremengrid[nodes[currentSlot]]->id);
     if (debug)
     {
         timeInfo = givenTime;
@@ -495,51 +543,6 @@ int getNextTimeSlot(int lookAhead)
     if (currentSlot >= 0 && currentSlot < numSlots) return currentSlot;
     ROS_ERROR("Exploration schedule error: attempting to get task in a non-existent time slot.");
     return -1;
-}
-
-/*creates a task for the given slot*/
-int createTask(int slot)
-{
-    char dummy[1000];
-    char testTime[1000];
-    time_t timeInfo = timeSlots[slot];
-    strftime(testTime, sizeof(testTime), "%Y-%m-%d_%H:%M:%S",localtime(&timeInfo));
-
-    bool critical = false;
-    //if critical...
-    for(int i = 0; i < critical_nodes.size(); i++)
-    {
-        if(strcmp(fremengridSet->fremengrid[nodes[slot]]->id, critical_nodes[i].c_str()) == 0)
-        {
-            critical = true;
-            break;
-        }
-
-    }
-
-    if(critical)
-    {
-        mongodb_store_msgs::StringPair taskArg;
-        taskArg.second = "complete";
-        strands_executive_msgs::Task task;
-        task.action = "do_sweep";
-        task.start_node_id = fremengridSet->fremengrid[nodes[slot]]->id;
-        task.end_node_id = fremengridSet->fremengrid[nodes[slot]]->id;
-        task.priority = taskPriority;
-        task.arguments.push_back(taskArg);
-
-        task.start_after =  ros::Time(timeSlots[slot]+taskStartDelay,0);
-        task.end_before = ros::Time(timeSlots[slot]+taskDuration - 2,0);
-        task.max_duration = task.end_before - task.start_after;
-        strands_executive_msgs::AddTask taskAdd;
-        taskAdd.request.task = task;
-        if (taskAdder.call(taskAdd))
-        {
-            sprintf(dummy,"%s for timeslot %i on %s, between %i and %i.",fremengridSet->fremengrid[nodes[slot]]->id,slot,testTime,task.start_after.sec,task.end_before.sec);
-            ROS_INFO("Task %ld created at %s (ground truth node).", taskAdd.response.task_id,dummy);
-            taskIDs[slot] = taskAdd.response.task_id;
-        }
-    }
 }
 
 /*saves grid to database*/
@@ -839,7 +842,6 @@ int main(int argc,char* argv[])
     while (ros::ok())
     {
         ros::spinOnce();
-
         if (debug) ROS_INFO("Exploration tasks: %i %i",numCurrentTasks,maxTaskNumber);
         currentTimeSlot = getNextTimeSlot(0);
         if (currentTimeSlot!=lastTimeSlot){
@@ -851,7 +853,7 @@ int main(int argc,char* argv[])
             lastTimeSlot=currentTimeSlot;
             int a = getNextTimeSlot(numCurrentTasks);
             if (a >= 0){
-                createTask(a);
+                //createTask(a);
                 numCurrentTasks++;
             }
         }
