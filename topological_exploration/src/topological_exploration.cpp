@@ -835,6 +835,8 @@ int main(int argc,char* argv[])
 
     ros::spinOnce();
 
+    ros::Rate r(10); // 10 hz
+
     maxTaskNumber = 1;
     while (ros::ok())
     {
@@ -854,6 +856,7 @@ int main(int argc,char* argv[])
             }
         }
         ros::spinOnce();
+        r.sleep();
     }
 
     delete fremengridSet;
