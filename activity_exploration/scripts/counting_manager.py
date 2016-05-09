@@ -62,7 +62,10 @@ class PeopleCountingManager(object):
         )
         visit_plan = list()
         for roi, poisson in rates.iteritems():
-            total_rate = sum(poisson.values()) / float(len(poisson.values()))
+            divider_rate = float(len(poisson.values()))
+            if divider_rate == 0:
+                divider_rate = 1
+            total_rate = sum(poisson.values()) / divider_rate
             visit_plan.append((total_rate, roi))
         visit_plan = sorted(visit_plan, key=lambda i: i[0], reverse=True)
         visit_plan = self._check_visit_plan(
