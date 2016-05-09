@@ -838,7 +838,7 @@ int main(int argc,char* argv[])
     while (ros::ok())
     {
         ros::spinOnce();
-        sleep(1);
+        //sleep(1);
         if (debug) ROS_INFO("Exploration tasks: %i %i",numCurrentTasks,maxTaskNumber);
         currentTimeSlot = getNextTimeSlot(0);
         if (currentTimeSlot!=lastTimeSlot){
