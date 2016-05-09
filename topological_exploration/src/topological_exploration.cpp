@@ -838,6 +838,8 @@ int main(int argc,char* argv[])
     maxTaskNumber = 1;
     while (ros::ok())
     {
+        ros::spinOnce();
+
         if (debug) ROS_INFO("Exploration tasks: %i %i",numCurrentTasks,maxTaskNumber);
         currentTimeSlot = getNextTimeSlot(0);
         if (currentTimeSlot!=lastTimeSlot){
@@ -853,7 +855,6 @@ int main(int argc,char* argv[])
                 numCurrentTasks++;
             }
         }
-        ros::spinOnce();
     }
 
     delete fremengridSet;
