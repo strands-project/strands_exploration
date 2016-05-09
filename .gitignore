@@ -29,3 +29,7 @@
 
 # Compiled Python files
 *.pyc
+
+# System files
+*.DS_STORE
+*~
