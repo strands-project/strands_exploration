@@ -2,10 +2,10 @@
     <arg name="soma_config"/>
     <arg name="time_increment" default="1"/>
     <arg name="time_window" default="10"/>
-    <arg name="periodic_cycle" default="1440"/>
+    <arg name="periodic_cycle" default="10080"/>
     <arg name="consent_topic" default="/skeleton_data/consent_ret"/>
     <arg name="trajectory_topic" default="/people_trajectory/trajectories/complete"/>
-    <arg name="consent_rate" default="1.5"/>
+    <arg name="consent_rate" default="0.8"/>
 
     <arg name="machine" default="localhost" />
     <arg name="user" default="" />

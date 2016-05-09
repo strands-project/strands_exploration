@@ -19,14 +19,14 @@ class PeopleCountingManager(object):
         soma_config = rospy.get_param("~soma_config", "activity_exploration")
         time_window = rospy.get_param("~time_window", 10)
         time_increment = rospy.get_param("~time_increment", 1)
-        periodic_cycle = rospy.get_param("~periodic_cycle", 1440)
+        periodic_cycle = rospy.get_param("~periodic_cycle", 10080)
         self.poisson_proc = PoissonProcessesPeople(
             soma_config, time_window, time_increment, periodic_cycle
         )
         self.poisson_proc.load_from_db()
         self.poisson_consent = PoissonWrapper(
             rospy.get_param("~consent_topic", "/skeleton_data/consent_ret"),
-            String, "data", "nothing", time_window*3, time_increment, periodic_cycle
+            String, "data", "nothing", time_window*3, time_increment, 1440
         )
         rospy.sleep(0.1)
         self.topo_map = None
@@ -62,7 +62,7 @@ class PeopleCountingManager(object):
         )
         visit_plan = list()
         for roi, poisson in rates.iteritems():
-            total_rate = sum(poisson.values())
+            total_rate = sum(poisson.values()) / float(len(poisson.values()))
             visit_plan.append((total_rate, roi))
         visit_plan = sorted(visit_plan, key=lambda i: i[0], reverse=True)
         visit_plan = self._check_visit_plan(
@@ -113,7 +113,11 @@ class PeopleCountingManager(object):
         rates_consent = self.poisson_consent.retrieve_from_to(
             msg.start_time, msg.end_time
         )
-        if sum(rates_consent.values()) > rospy.get_param("~consent_rate", 1.5):
+        try:
+            avg = sum(rates_consent.values()) / float(len(rates_consent.values()))
+        except:
+            return task
+        if avg >= rospy.get_param("~consent_rate", 0.8):
             rospy.loginfo("Waypoint's order: %s is shuffled" % str(task.task_definition))
             random.shuffle(task.task_definition)
         return task

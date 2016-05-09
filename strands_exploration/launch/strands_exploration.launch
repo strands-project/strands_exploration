@@ -1,5 +1,6 @@
 <launch>
     <arg name="soma_config"/>
+    <arg name="periodic_cycle" default="10080"/>
 
     <arg name="machine" default="localhost" />
     <arg name="user" default="" />
@@ -16,5 +17,6 @@
     
     <include file="$(find activity_exploration)/launch/activity_exploration.launch">
         <arg name="soma_config" value="$(arg soma_config)"/>
+        <arg name="periodic_cycle" value="$(arg periodic_cycle)"/>
     </include>
 </launch>

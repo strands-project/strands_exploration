@@ -93,7 +93,7 @@ class PoissonProcessesPeople(object):
         # rospy.loginfo("Total trajectories counted so far is %d." % len(temp))
 
         traj_inds = list()
-        self._start_time = self._start_time + rospy.Duration(self.time_increment*60)
+        count_per_region = dict()
         for observation in region_observations:
             # rospy.loginfo(
             #     "Observation in region %s was for %d duration from %d to %d." % (
@@ -111,13 +111,22 @@ class PoissonProcessesPeople(object):
                 if is_intersected(self.regions[observation.region_id], points):
                     if trajectory.end_time >= observation.start_from:
                         count += 1
-                if trajectory.end_time >= self._start_time and ind not in traj_inds:
+                conditions = trajectory.end_time >= (
+                    self._start_time + rospy.Duration(self.time_increment*60)
+                )
+                conditions = conditions and ind not in traj_inds
+                if conditions:
                     traj_inds.append(ind)
             if count > 0 or observation.duration.secs >= 59:
                 count = self._extrapolate_count(observation.duration, count)
-                self.process[observation.region_id].update(observation.start_from, count)
-                # save the observation for that time
-                self._store(observation.region_id, observation.start_from)
+            if observation.region_id not in count_per_region.keys():
+                count_per_region[observation.region_id] = 0
+            count_per_region[observation.region_id] += count
+        # update and save observation for that time
+        for roi, count in count_per_region.iteritems():
+            self.process[roi].update(self._start_time, count)
+            self._store(roi, self._start_time)
+        self._start_time = self._start_time + rospy.Duration(self.time_increment*60)
         # remove trajectories that have been updated
         n = len(temp)
         temp = [temp[i] for i in traj_inds]
