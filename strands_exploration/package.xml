@@ -15,6 +15,7 @@
 
 
   <run_depend>activity_exploration</run_depend>
+  <run_depend>edge_exploration</run_depend>
   <run_depend>exploration_tasks_generator</run_depend>
   <run_depend>strands_exploration_msgs</run_depend>
   <run_depend>topological_exploration</run_depend>

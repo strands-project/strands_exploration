@@ -28,6 +28,11 @@ class OnlineRegionObservation(object):
         self.regions, self.soma_map = get_soma_info(soma_config)
         self.soma_config = soma_config
         self.intersected_regions = list()
+        # get robot sight
+        self.region_observation_duration = dict()
+        # db for RegionObservation
+        rospy.loginfo("Create collection db as %s..." % coll)
+        self._db = MessageStoreProxy(collection=coll)
         # draw robot view cone
         self._pub = rospy.Publisher("%s/view_cone" % name, Marker, queue_size=10)
         # publish the result of the observation
@@ -36,8 +41,7 @@ class OnlineRegionObservation(object):
         self._thread = threading.Thread(target=self.publish_msgs)
         # get robot sight
         self._pan_orientation = 0.0
-        rospy.loginfo("Subcribe to /robot_pose and /ptu/state...")
-        rospy.Subscriber("/robot_pose", Pose, self._robot_cb, None, 10)
+        rospy.loginfo("Subcribe to /ptu/state...")
         rospy.Subscriber("/ptu/state", JointState, self._ptu_cb, None, 10)
         self.region_observation_duration = dict()
         # db for RegionObservation
@@ -46,6 +50,8 @@ class OnlineRegionObservation(object):
 
     def _ptu_cb(self, ptu):
         self._pan_orientation = ptu.position[ptu.name.index('pan')]
+        rospy.loginfo("Subcribe to /robot_pose...")
+        rospy.Subscriber("/robot_pose", Pose, self._robot_cb, None, 10)
 
     def _robot_cb(self, pose):
         robot_sight, arr_robot_sight = robot_view_cone(pose, self._pan_orientation)

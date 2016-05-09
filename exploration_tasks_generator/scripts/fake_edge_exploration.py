@@ -17,7 +17,7 @@ class FakeEdgeExploration(object):
         res=GetExplorationTasksResponse(task_definition=[],
                                            task_score=[])
         topo_map=self.get_top_map_srv(rospy.get_param("/topological_map_name")).map
-        for i in range(0,8):
+        for i in range(0,3):
             node=random.choice(topo_map.nodes)
             if node.name != "ChargingPoint":
                 edge=random.choice(node.edges).edge_id
