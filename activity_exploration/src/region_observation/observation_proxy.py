@@ -44,10 +44,10 @@ class RegionObservationProxy(object):
         return roi_observation, total_observation
 
     def load_msg(self, start_time, end_time, roi="", minute_increment=1):
-        rospy.loginfo(
-            "Querying region observation from %s to %s" %
-            (start_time.secs, end_time.secs)
-        )
+        # rospy.loginfo(
+        #     "Querying region observation from %s to %s" %
+        #     (start_time.secs, end_time.secs)
+        # )
         end_time = end_time - rospy.Duration(minute_increment * 60, 0)
         query = {
             "soma": self.soma_map, "soma_config": self.soma_config,
@@ -56,5 +56,5 @@ class RegionObservationProxy(object):
         if roi != "":
             query.update({"region_id": roi})
         logs = self._db.query(RegionObservationTime._type, query)
-        rospy.loginfo("Got %d region observation entries..." % len(logs))
+        # rospy.loginfo("Got %d region observation entries..." % len(logs))
         return [log[0] for log in logs]

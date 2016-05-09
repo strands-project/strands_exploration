@@ -18,7 +18,6 @@ class PoissonProcessesPeople(object):
         self, config, window=10, increment=1,
         periodic_cycle=10080, coll="poisson_processes"
     ):
-        rospy.loginfo("Initializing people counting...")
         temp = datetime.datetime.fromtimestamp(rospy.Time.now().secs)
         temp = datetime.datetime(
             temp.year, temp.month, temp.day, temp.hour, temp.minute, 0
@@ -44,11 +43,12 @@ class PoissonProcessesPeople(object):
             roi: PeriodicPoissonProcesses(window, increment, periodic_cycle) for roi in self.regions.keys()
         }
 
-    def retrieve_from_to(self, start_time, end_time):
+    def retrieve_from_to(self, start_time, end_time, scale=False):
         result = dict()
         for roi, poisson in self.process.iteritems():
             result.update(
-                {roi: poisson.retrieve(start_time, end_time)}
+                # use upper confidence rate value
+                {roi: poisson.retrieve(start_time, end_time, True, scale)}
             )
         return result
 
@@ -80,9 +80,8 @@ class PoissonProcessesPeople(object):
     def continuous_update(self):
         while not rospy.is_shutdown():
             delta = (rospy.Time.now() - self._start_time)
-            # rospy.loginfo("%d seconds" % delta.secs)
             if delta > rospy.Duration(self.time_window*60):
-                rospy.loginfo("Updating poisson processes for each region...")
+                # rospy.loginfo("Updating poisson processes for each region...")
                 self.update()
             rospy.sleep(1)
 
@@ -91,16 +90,16 @@ class PoissonProcessesPeople(object):
             self._start_time, rospy.Time.now(), minute_increment=self.time_increment
         )
         temp = copy.deepcopy(self.trajectories)
-        rospy.loginfo("Total trajectories counted so far is %d." % len(temp))
+        # rospy.loginfo("Total trajectories counted so far is %d." % len(temp))
 
         traj_inds = list()
-        self._start_time = self._start_time + rospy.Duration(self.time_increment*60)
+        count_per_region = dict()
         for observation in region_observations:
-            rospy.loginfo(
-                "Observation in region %s was for %d duration from %d to %d." % (
-                    observation.region_id, observation.duration.secs, observation.start_from.secs, observation.until.secs
-                )
-            )
+            # rospy.loginfo(
+            #     "Observation in region %s was for %d duration from %d to %d." % (
+            #         observation.region_id, observation.duration.secs, observation.start_from.secs, observation.until.secs
+            #     )
+            # )
             count = 0
             for ind, trajectory in enumerate(temp):
                 points = [
@@ -112,15 +111,23 @@ class PoissonProcessesPeople(object):
                 if is_intersected(self.regions[observation.region_id], points):
                     if trajectory.end_time >= observation.start_from:
                         count += 1
-                if trajectory.end_time > self._start_time and ind not in traj_inds:
+                conditions = trajectory.end_time >= (
+                    self._start_time + rospy.Duration(self.time_increment*60)
+                )
+                conditions = conditions and ind not in traj_inds
+                if conditions:
                     traj_inds.append(ind)
             if count > 0 or observation.duration.secs >= 59:
                 count = self._extrapolate_count(observation.duration, count)
-                self.process[observation.region_id].update(observation.start_from, count)
-                # save the observation for that time
-                self._store(observation.region_id, observation.start_from)
-        # clear observed region to get new info, remove trajectories that
-        # have been updated
+            if observation.region_id not in count_per_region.keys():
+                count_per_region[observation.region_id] = 0
+            count_per_region[observation.region_id] += count
+        # update and save observation for that time
+        for roi, count in count_per_region.iteritems():
+            self.process[roi].update(self._start_time, count)
+            self._store(roi, self._start_time)
+        self._start_time = self._start_time + rospy.Duration(self.time_increment*60)
+        # remove trajectories that have been updated
         n = len(temp)
         temp = [temp[i] for i in traj_inds]
         while self._acquired:
@@ -153,7 +160,7 @@ class PoissonProcessesPeople(object):
         multiplier_estimator = 3600 / float(
             (60 / self.time_increment) * upper_threshold_duration.secs
         )
-        rospy.loginfo("Extrapolate count %d by %.2f" % (count, multiplier_estimator))
+        # rospy.loginfo("Extrapolate count %d by %.2f" % (count, multiplier_estimator))
         return math.ceil(multiplier_estimator * count)
 
 

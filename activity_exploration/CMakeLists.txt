@@ -5,6 +5,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   rospy
   std_msgs
+  sensor_msgs
   soma_manager
   mongodb_store
   geometry_msgs
@@ -45,7 +46,7 @@ generate_messages(
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES region_observation
-  CATKIN_DEPENDS mongodb_store rospy soma_manager tf soma_map_manager geometry_msgs visualization_msgs human_trajectory strands_navigation_msgs strands_exploration_msgs std_msgs
+  CATKIN_DEPENDS mongodb_store rospy soma_manager tf soma_map_manager geometry_msgs visualization_msgs human_trajectory strands_navigation_msgs strands_exploration_msgs std_msgs sensor_msgs
 #  DEPENDS system_lib
 )
 
@@ -65,7 +66,8 @@ include_directories(
 ## in contrast to setup.py, you can choose the destination
 install(PROGRAMS
   scripts/counting_manager.py
-  # src/region_observation/observe.py
+  src/region_observation/observe.py
+  src/periodic_poisson_processes/people_poisson.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 install(DIRECTORY launch
