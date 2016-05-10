@@ -5,7 +5,7 @@
 #include <ros/ros.h>
 #include <tf/tf.h>
 #include <dynamic_reconfigure/server.h>
-#include <topological_exploration/topological_explorationConfig.h>
+#include <spatiotemporal_exploration/spatiotemporal_explorationConfig.h>
 #include <strands_navigation_msgs/NavStatistics.h>
 #include <strands_navigation_msgs/TopologicalMap.h>
 #include <strands_navigation_msgs/TopologicalNode.h>
@@ -121,7 +121,7 @@ uint32_t getMidnightTime(uint32_t givenTime)
 }
 
 /*parameter reconfiguration*/
-void reconfigureCallback(topological_exploration::topological_explorationConfig &config, uint32_t level) 
+void reconfigureCallback(spatiotemporal_exploration::spatiotemporal_explorationConfig &config, uint32_t level)
 {
     ROS_INFO("Reconfigure Request: %lf %d", config.explorationRatio, config.maxTaskNumber);
     explorationRatio = config.explorationRatio;
@@ -771,8 +771,8 @@ int main(int argc,char* argv[])
     fremengridSet = new CFremenGridSet();
 
     //initialize dynamic reconfiguration feedback
-    dynamic_reconfigure::Server<topological_exploration::topological_explorationConfig> server;
-    dynamic_reconfigure::Server<topological_exploration::topological_explorationConfig>::CallbackType dynSer;
+    dynamic_reconfigure::Server<spatiotemporal_exploration::spatiotemporal_explorationConfig> server;
+    dynamic_reconfigure::Server<spatiotemporal_exploration::spatiotemporal_explorationConfig>::CallbackType dynSer;
     dynSer = boost::bind(&reconfigureCallback, _1, _2);
     server.setCallback(dynSer);
 

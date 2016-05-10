@@ -1,11 +1,11 @@
 <launch>
-    <arg name="schedule_directory" default="/home/strands/topological_exploration/schedules"/>
-    <arg name="grids_directory" default="/home/strands/topological_exploration/3dmaps"/>
+    <arg name="schedule_directory" default="/home/strands/spatiotemporal_exploration/schedules"/>
+    <arg name="grids_directory" default="/home/strands/spatiotemporal_exploration/3dmaps"/>
 	<arg name="sweep_type" default="complete"/>
 	<arg name="tag_node" default="Exploration"/>
 	<arg name="tag_ground_node" default="ExplorationGround"/>
 
-	<node name="exploration" pkg="topological_exploration" type="topological_exploration" output="screen">
+	<node name="exploration" pkg="spatiotemporal_exploration" type="spatiotemporal_exploration" output="screen">
 		<param name="tag_node" value="$(arg tag_node)"/> 
 		<param name="tag_ground_node" value="$(arg tag_ground_node)"/> 		
 		<param name="sweep_type" value="$(arg sweep_type)"/>
