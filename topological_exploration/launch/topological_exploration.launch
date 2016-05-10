@@ -1,15 +1,21 @@
 <launch>
+    <arg name="schedule_directory" default="/home/strands/topological_exploration/schedules"/>
+    <arg name="grids_directory" default="/home/strands/topological_exploration/3dmaps"/>
+	<arg name="sweep_type" default="complete"/>
+	<arg name="tag_node" default="Exploration"/>
+	<arg name="tag_ground_node" default="ExplorationGround"/>
 
-	<arg name="exploration" pkg="topological_exploration" type="topological_exploration">
-		<param name="sweep_type" value="complete"/>
+	<node name="exploration" pkg="topological_exploration" type="topological_exploration" output="screen">
+		<param name="tag_node" value="$(arg tag_node)"/> 
+		<param name="tag_ground_node" value="$(arg tag_ground_node)"/> 		
+		<param name="sweep_type" value="$(arg sweep_type)"/>
 		<param name="collection_name" value="FremenGrid"/>
-		<param name="schedule_directory" value="/localhome/strands/schedules"/>
+		<param name="schedule_directory" value="$(arg schedule_directory)"/>
 		<param name="verbose" value="false"/>
 		<param name="resolution" value="0.1"/>
 		<param name="dimX" value="100"/>
 		<param name="dimY" value="100"/>
 		<param name="dimZ" value="50"/>
-		<param name="grids_directory" value="/localhome/strands/3dmaps"/>
+		<param name="grids_directory" value="$(arg grids_directory)"/>
 	</node>
-
 </launch>
