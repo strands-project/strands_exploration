@@ -92,7 +92,7 @@ class PoissonProcessesPeople(object):
         temp = copy.deepcopy(self.trajectories)
         # rospy.loginfo("Total trajectories counted so far is %d." % len(temp))
 
-        traj_inds = list()
+        used_trajectories = list()
         count_per_region = dict()
         for observation in region_observations:
             # rospy.loginfo(
@@ -101,7 +101,7 @@ class PoissonProcessesPeople(object):
             #     )
             # )
             count = 0
-            for ind, trajectory in enumerate(temp):
+            for trajectory in temp:
                 points = [
                     [
                         pose.pose.position.x, pose.pose.position.y
@@ -109,14 +109,13 @@ class PoissonProcessesPeople(object):
                 ]
                 points = create_line_string(points)
                 if is_intersected(self.regions[observation.region_id], points):
-                    if trajectory.end_time >= observation.start_from:
+                    # it also must be within time boundaries
+                    conditions = trajectory.end_time >= observation.start_from
+                    # observation.until is secs.999999999999
+                    conditions = conditions and trajectory.end_time <= observation.until
+                    if conditions:
                         count += 1
-                conditions = trajectory.end_time >= (
-                    self._start_time + rospy.Duration(self.time_increment*60)
-                )
-                conditions = conditions and ind not in traj_inds
-                if conditions:
-                    traj_inds.append(ind)
+                        used_trajectories.append(trajectory)
             if count > 0 or observation.duration.secs >= 59:
                 count = self._extrapolate_count(observation.duration, count)
             if observation.region_id not in count_per_region.keys():
@@ -127,9 +126,10 @@ class PoissonProcessesPeople(object):
             self.process[roi].update(self._start_time, count)
             self._store(roi, self._start_time)
         self._start_time = self._start_time + rospy.Duration(self.time_increment*60)
-        # remove trajectories that have been updated
+        # remove trajectories that have been updated,
+        # and update the current stored trajectories
         n = len(temp)
-        temp = [temp[i] for i in traj_inds]
+        temp = [i for i in temp if i not in used_trajectories]
         while self._acquired:
             rospy.sleep(0.01)
         self._acquired = True
@@ -173,23 +173,19 @@ if __name__ == '__main__':
         help="Fixed time window interval (in minute) for each Poisson distribution. Default is 10 minute."
     )
     parser.add_argument(
-        "-m", dest="minute_increment", default="1",
+        "-m", dest="time_increment", default="1",
         help="Incremental time (in minute). Default is 1 minute."
     )
     parser.add_argument(
         "-p", dest="periodic_cycle", default="10080",
-        help="Incremental time (in minute). Default is one week (10080 minutes)."
+        help="Desired periodic cycle (in minute). Default is one week (10080 minutes)"
     )
     args = parser.parse_args()
 
     ppp = PoissonProcessesPeople(
-        args.soma_config, int(args.time_window), int(args.minute_increment),
+        args.soma_config, int(args.time_window), int(args.time_increment),
         int(args.periodic_cycle)
     )
     ppp.load_from_db()
     ppp.continuous_update()
     rospy.spin()
-    # ppp.store_to_db()
-    ppp.retrieve_from_to(
-        rospy.Time(1462108560), rospy.Time(1462108980)
-    )
