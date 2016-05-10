@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package>
-  <name>topological_exploration</name>
+  <name>spatiotemporal_exploration</name>
   <version>0.0.0</version>
-  <description>The spatiotemporal_topological_exploration package</description>
+  <description>The spatiotemporal_exploration package</description>
 
   <maintainer email="jsantos@lincoln.ac.uk">Joao Santos</maintainer>
 
