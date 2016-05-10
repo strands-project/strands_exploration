@@ -42,11 +42,12 @@ class OnlineRegionObservation(object):
         # db for RegionObservation
         rospy.loginfo("Create collection db as %s..." % coll)
         self._db = MessageStoreProxy(collection=coll)
+        rospy.loginfo("Subcribe to /robot_pose...")
+        rospy.Subscriber("/robot_pose", Pose, self._robot_cb, None, 10)
 
     def _ptu_cb(self, ptu):
         self._pan_orientation = ptu.position[ptu.name.index('pan')]
-        rospy.loginfo("Subcribe to /robot_pose...")
-        rospy.Subscriber("/robot_pose", Pose, self._robot_cb, None, 10)
+        
 
     def _robot_cb(self, pose):
         robot_sight, arr_robot_sight = robot_view_cone(pose, self._pan_orientation)
