@@ -38,13 +38,13 @@ CFremenGrid::CFremenGrid(const char* name, float originX,float originY,float ori
 
 CFremenGrid::~CFremenGrid()
 {
-    free(raycasters);
-    free(aux);
-    free(probs);
-    free(predicted);
-    free(frelements);
-    //for (int i=0;i<numCells;i++) free(cellArray[i]);
-    //free(cellArray);
+	if (numRaycasters > 0) free(raycasters);
+	free(aux);
+	free(probs);
+	free(predicted);
+	free(frelements);
+	//for (int i=0;i<numCells;i++) free(cellArray[i]);
+	//free(cellArray);
 
 }
 
