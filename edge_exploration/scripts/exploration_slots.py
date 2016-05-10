@@ -122,7 +122,10 @@ class exploration_slots(object):
                 self.eids[i]['score']=0.0
             elif self.eids[i]['score'] > 1.0:
                 self.eids[i]['score']=1.0
-            
+
+            if self.eids[i]['samples'] <= 10 :
+                self.eids[i]['probs'] = 0.5    
+                
 #            print "+++++"
 #            print i, self.eids[i]['edge_id'], self.eids[i]['samples'], self.eids[i]['entropy'], self.eids[i]['score']
             #print wsbs, self.eids[i]['entropy'], 1-wsbs, sbs, self.eids[i]['score']
