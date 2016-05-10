@@ -545,6 +545,7 @@ int getNextTimeSlot(int lookAhead)
     return -1;
 }
 
+
 /*saves grid to database*/
 int saveGrid(string name)
 {
@@ -796,7 +797,7 @@ int main(int argc,char* argv[])
     //to create task objects
     taskAdder = n.serviceClient<strands_executive_msgs::AddTask>("/task_executor/add_task");
     //save grid
-    //    save_service = n.serviceClient<strands_exploration_msgs::SaveGrid>("/topological_exploration/save_grid");
+//    save_service = n.serviceClient<strands_exploration_msgs::SaveGrid>("/topological_exploration/save_grid");
 
 
 
@@ -811,6 +812,7 @@ int main(int argc,char* argv[])
     image_transport::ImageTransport imageTransporter(n);
     image_transport::Subscriber image_subscriber = imageTransporter.subscribe("/local_metric_map/depth/depth_filtered", 50, imageCallback);
     ros::spinOnce();
+
 
     //get critical and non critical nodes
     int num_critical_nodes = getRelevantNodes(ground_node, &critical_nodes);
@@ -837,7 +839,6 @@ int main(int argc,char* argv[])
     generateSchedule(currentTime.sec);
 
     ros::spinOnce();
-
     maxTaskNumber = 1;
     while (ros::ok())
     {
@@ -863,5 +864,6 @@ int main(int argc,char* argv[])
     delete tf_listener;
 
     return 0;
+
 }
 

@@ -1,7 +1,6 @@
 <launch>
-
-	<arg name="schedule_directory" default="/localhome/strands/schedules"/>
-	<arg name="grids_directory" default="/localhome/strands/3dmaps"/>
+    <arg name="schedule_directory" default="/home/strands/topological_exploration/schedules"/>
+    <arg name="grids_directory" default="/home/strands/topological_exploration/3dmaps"/>
 	<arg name="sweep_type" default="complete"/>
 	<arg name="tag_node" default="Exploration"/>
 	<arg name="tag_ground_node" default="ExplorationGround"/>
@@ -19,5 +18,4 @@
 		<param name="dimZ" value="50"/>
 		<param name="grids_directory" value="$(arg grids_directory)"/>
 	</node>
-
 </launch>
