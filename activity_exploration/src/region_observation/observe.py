@@ -38,6 +38,7 @@ class OnlineRegionObservation(object):
         self._pan_orientation = 0.0
         rospy.loginfo("Subcribe to /ptu/state...")
         rospy.Subscriber("/ptu/state", JointState, self._ptu_cb, None, 10)
+        rospy.sleep(0.1)
         self.region_observation_duration = dict()
         # db for RegionObservation
         rospy.loginfo("Create collection db as %s..." % coll)
@@ -47,7 +48,6 @@ class OnlineRegionObservation(object):
 
     def _ptu_cb(self, ptu):
         self._pan_orientation = ptu.position[ptu.name.index('pan')]
-        
 
     def _robot_cb(self, pose):
         robot_sight, arr_robot_sight = robot_view_cone(pose, self._pan_orientation)
