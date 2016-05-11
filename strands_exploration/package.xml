@@ -18,7 +18,7 @@
   <run_depend>edge_exploration</run_depend>
   <run_depend>exploration_tasks_generator</run_depend>
   <run_depend>strands_exploration_msgs</run_depend>
-  <run_depend>topological_exploration</run_depend>
+  <run_depend>spatiotemporal_exploration</run_depend>
   <buildtool_depend>catkin</buildtool_depend>
 
 
