@@ -65,7 +65,7 @@ class TaskGenerator(object):
         if total>0:
             weights=[task.score/total for task in task_list]
         else:
-            weights=[1 for task in task_list]
+            weights=[1.0/len(task_list) for task in task_list]
         
         #weighted choice
         res=choice(task_list, p=weights)
