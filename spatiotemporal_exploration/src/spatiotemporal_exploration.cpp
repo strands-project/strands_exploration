@@ -795,7 +795,7 @@ int main(int argc,char* argv[])
     //to get relevant nodes
     nodeListClient = n.serviceClient<strands_navigation_msgs::GetTaggedNodes>("/topological_map_manager/get_tagged_nodes");
     //to create task objects
-    taskAdder = n.serviceClient<strands_executive_msgs::AddTask>("/task_executor/add_task");
+    taskAdder = n.serviceClient<strands_executive_msgs::AddTask>("/robot_routine/add_tasks");
     //save grid
 //    save_service = n.serviceClient<strands_exploration_msgs::SaveGrid>("/topological_exploration/save_grid");
 
@@ -840,6 +840,9 @@ int main(int argc,char* argv[])
 
     ros::spinOnce();
     maxTaskNumber = 1;
+
+    ros::Rate r(10);
+
     while (ros::ok())
     {
         ros::spinOnce();
@@ -858,6 +861,8 @@ int main(int argc,char* argv[])
                 numCurrentTasks++;
             }
         }
+
+        r.sleep();
     }
 
     delete fremengridSet;
