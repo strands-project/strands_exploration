@@ -9,7 +9,6 @@
     <arg name="user" default="" />
     <machine name="$(arg machine)" address="$(arg machine)" env-loader="$(optenv ROS_ENV_LOADER )" user="$(arg user)" default="true"/>
 
-    <remap from="task_executor/add_tasks" to="robot_routine/add_tasks"/>
 
     <node pkg="exploration_tasks_generator" type="exploration_tasks_generator_node.py" name="exploration_tasks_generator_node" output="screen">
     </node>
