@@ -372,8 +372,8 @@ int createTask(int slot)
         task.arguments.push_back(taskArg);
 
         task.start_after =  ros::Time(timeSlots[slot]+taskStartDelay,0);
-        task.end_before = ros::Time(timeSlots[slot]+taskDuration - 2,0);
-        task.max_duration = task.end_before - task.start_after;
+        task.end_before = task.start_after;//ros::Time(timeSlots[slot]+taskDuration - 2,0);
+        task.max_duration = ros::Time(timeSlots[slot]+taskDuration - 2,0) - task.start_after;//task.end_before - task.start_after;
         strands_executive_msgs::AddTask taskAdd;
         taskAdd.request.task = task;
         if (taskAdder.call(taskAdd))
@@ -841,7 +841,7 @@ int main(int argc,char* argv[])
     ros::spinOnce();
     maxTaskNumber = 1;
 
-    ros::Rate r(10);
+    ros::Rate r(4);
 
     while (ros::ok())
     {
