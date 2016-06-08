@@ -9,15 +9,9 @@ from strands_executive_msgs.srv import AddTasks
 class TaskGenerator(object):
 
     def __init__(self):
-        self.trigger_dur=rospy.Duration(60*60)
-        self.window_dur=rospy.Duration(60*20)
-        self.slack_dur=rospy.Duration(60*2)
         
-        self.tasks_per_trigger_dict={'edge_exploration':10, 'fremen_grid_exploration':4, 'activity_exploration':1} #TODO: make param
-        self.default_tasks_per_trigger=2
         
-        self.task_priorities={'activity_exploration':10}
-        self.default_task_priority=0
+        self.update_task_params()
         
         self.services_manager=ExplorationServicesManager()
         self.timer=rospy.Timer(self.trigger_dur, self.add_tasks_to_schedule)
@@ -26,7 +20,24 @@ class TaskGenerator(object):
         self.add_tasks_to_schedule(None)
         
     
+    def update_task_params(self):
+        self.trigger_dur=rospy.Duration(rospy.get_param('~trigger_dur', 60*60))
+        self.window_dur=rospy.Duration(rospy.get_param('~window_dur',60*20))
+        self.slack_dur=rospy.Duration(rospy.get_param('~slack_dur',60*2))
+        
+        self.tasks_per_trigger_dict={'edge_exploration':rospy.get_param('~edge_exploration_per_trigger', 10),
+                                     'fremen_grid_exploration':rospy.get_param('~fremen_grid_exploration_per_trigger', 4), 
+                                     'activity_exploration':rospy.get_param('~activity_exploration_per_trigger', 1)}
+        self.default_tasks_per_trigger=rospy.get_param('~default_tasks_per_trigger', 2)
+        
+        self.task_priorities={'edge_exploration':rospy.get_param('~edge_exploration_priority', 0),
+                              'fremen_grid_exploration':rospy.get_param('~fremen_grid_exploration_priority', 0), 
+                              'activity_exploration':rospy.get_param('~activity_exploration_priority', 10)}
+        self.default_task_priority=rospy.get_param('~default_task_priority', 0)
+    
+    
     def add_tasks_to_schedule(self, timer_event):
+        self.update_task_params()
         i=rospy.Duration(0)
         task_list=[]
         current_time=rospy.get_rostime()
