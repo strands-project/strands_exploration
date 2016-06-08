@@ -137,8 +137,8 @@ class ExplorationServicesManager(object):
     def create_tasks_for_activity_exp_srv(self, definitions, scores, start_time, end_time):
         res=[]
         for (wp, score) in zip(definitions, scores):
-            duration=rospy.Duration(3*60)
-            max_duration=duration + rospy.Duration(3*60) #TODO Params for this, and other times 
+            duration=rospy.Duration(rospy.get_param("~skeleton_action_dur",10*60))
+            max_duration=duration + rospy.Duration(10) 
     
             task=Task(action= 'skeleton_action',
                       start_node_id=wp,

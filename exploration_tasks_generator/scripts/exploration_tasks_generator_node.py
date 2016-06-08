@@ -27,7 +27,7 @@ class TaskGenerator(object):
         
         self.tasks_per_trigger_dict={'edge_exploration':rospy.get_param('~edge_exploration_per_trigger', 10),
                                      'fremen_grid_exploration':rospy.get_param('~fremen_grid_exploration_per_trigger', 4), 
-                                     'activity_exploration':rospy.get_param('~activity_exploration_per_trigger', 1)}
+                                     'activity_exploration':rospy.get_param('~activity_exploration_per_trigger', 2)}
         self.default_tasks_per_trigger=rospy.get_param('~default_tasks_per_trigger', 2)
         
         self.task_priorities={'edge_exploration':rospy.get_param('~edge_exploration_priority', 0),
