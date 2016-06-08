@@ -100,7 +100,7 @@ class ExplorationServicesManager(object):
                 do_learn=True
         if do_learn:
             for (wp, score) in zip(definitions, scores):
-                max_duration=rospy.Duration(rospy.get_param("object_learn_dur", 60*20))
+                max_duration=rospy.Duration(rospy.get_param("~object_learn_dur", 60*15))
                 task=Task(action= 'learn_object',
                         start_node_id=wp,
                         end_node_id=wp,
