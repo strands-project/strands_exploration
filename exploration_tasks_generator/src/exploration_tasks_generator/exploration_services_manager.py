@@ -1,6 +1,8 @@
 import rospy
 import rosservice
 
+from copy import deepcopy
+
 from strands_exploration_msgs.srv import GetExplorationTasks
 from strands_executive_msgs.msg import Task
 from strands_executive_msgs import task_utils as tu
@@ -8,7 +10,10 @@ from strands_executive_msgs import task_utils as tu
 from datetime import time, date, timedelta, datetime
 from dateutil.tz import tzlocal
 
-
+def get_x_best(scores, n):
+    scores=list(scores)
+    scores.sort(reverse=True)
+    return scores[n-1]
 
 def time_greater_than(t1, t2):
     """ Seems to be a bug in datetime when comparing localtz dates, so do this instead. """
@@ -98,8 +103,12 @@ class ExplorationServicesManager(object):
             current_time = datetime.fromtimestamp(rospy.get_rostime().to_sec(), tz=self.localtz).time()
             if time_greater_than(current_time, self.start) and time_less_than(current_time, self.end):
                 do_learn=True
-        if do_learn:
-            for (wp, score) in zip(definitions, scores):
+                n_learns=rospy.get_param("~n_learns_per_trigger", 1)
+                learn_thresh=get_x_best(deepcopy(scores), n_learns)
+                added_learns=0
+        for (wp, score) in zip(definitions, scores):       
+            if do_learn and score >= learn_thresh and added_learns < n_learns:
+                added_learns+=1
                 max_duration=rospy.Duration(rospy.get_param("~object_learn_dur", 60*15))
                 task=Task(action= 'learn_object',
                         start_node_id=wp,
@@ -111,8 +120,7 @@ class ExplorationServicesManager(object):
                 res.append(ExplorationTask(task_type="fremen_grid_exploration",
                                         score=score,
                                         task_def=task))
-        else:
-            for (wp, score) in zip(definitions, scores):
+            else:
                 task=Task(action= 'do_sweep',
                         start_node_id=wp,
                         end_node_id=wp,
