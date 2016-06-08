@@ -13,7 +13,7 @@ class TaskGenerator(object):
         self.window_dur=rospy.Duration(60*20)
         self.slack_dur=rospy.Duration(60*2)
         
-        self.tasks_per_trigger_dict={'edge_exploration':10, 'fremen_grid_exploration':8, 'activity_exploration':1} #TODO: make param
+        self.tasks_per_trigger_dict={'edge_exploration':10, 'fremen_grid_exploration':4, 'activity_exploration':1} #TODO: make param
         self.default_tasks_per_trigger=2
         
         self.task_priorities={'activity_exploration':10}
