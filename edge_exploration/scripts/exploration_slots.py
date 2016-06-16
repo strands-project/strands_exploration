@@ -17,6 +17,7 @@ class exploration_slots(object):
 
     def __init__(self):
         self.map_received =False
+        self.service_timeout = rospy.get_param("~timeout",10)
         host = rospy.get_param("mongodb_host")
         port = rospy.get_param("mongodb_port")
         self.mongo_client = pymongo.MongoClient(host, port)        
@@ -74,8 +75,7 @@ class exploration_slots(object):
         timeslot = req.start_time + rospy.Duration.from_sec((req.end_time.secs - req.start_time.secs)/2)
         print timeslot.secs, explotime.secs
         
-        
-        
+                
         ent = self.predict_entropy(timeslot)
         est = self.predict_edges(timeslot)
         self.fill_values(ent, est)
@@ -151,7 +151,7 @@ class exploration_slots(object):
 
             
     def predict_entropy(self, epoch):
-        rospy.wait_for_service('/topological_prediction/edge_entropies')
+        rospy.wait_for_service('/topological_prediction/edge_entropies', timeout=self.service_timeout)
         try:
             get_prediction = rospy.ServiceProxy('/topological_prediction/edge_entropies', strands_navigation_msgs.srv.PredictEdgeState)
             print "Requesting prediction for %f"%epoch.secs
@@ -163,7 +163,7 @@ class exploration_slots(object):
 
 
     def predict_edges(self, epoch):
-        rospy.wait_for_service('/topological_prediction/predict_edges')
+        rospy.wait_for_service('/topological_prediction/predict_edges', timeout=self.service_timeout)
         try:
             get_prediction = rospy.ServiceProxy('/topological_prediction/predict_edges', strands_navigation_msgs.srv.PredictEdgeState)
             print "Requesting prediction for %f"%epoch.secs
