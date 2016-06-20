@@ -50,9 +50,9 @@ class TaskGenerator(object):
             for i in range(0, n_tasks):
                 chosen_task=self.pick_task(current_task_list)
                 if self.task_priorities.has_key(task_type):
-                    chosen_task.priority=self.task_priorities[task_type]
+                    chosen_task.task_def.priority=self.task_priorities[task_type]
                 else:
-                    chosen_task.priority=self.default_task_priority
+                    chosen_task.task_def.priority=self.default_task_priority
                 tasks_to_add.append(chosen_task)
         shuffle(tasks_to_add)
         return [task.task_def for task in tasks_to_add]
@@ -62,7 +62,10 @@ class TaskGenerator(object):
         total=0
         for task in task_list:
             total+=task.score
-        weights=[task.score/total for task in task_list]
+        if total>0:
+            weights=[task.score/total for task in task_list]
+        else:
+            weights=[1.0/len(task_list) for task in task_list]
         
         #weighted choice
         res=choice(task_list, p=weights)

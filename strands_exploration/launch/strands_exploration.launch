@@ -1,12 +1,14 @@
 <launch>
     <arg name="soma_config"/>
     <arg name="periodic_cycle" default="10080"/>
-    <arg name="schedule_directory" default="/data/topological_exploration/schedules"/>
-    <arg name="grids_directory" default="/data/topological_exploration/3dmaps"/>
+    <arg name="schedule_directory" default="/home/strands/spatiotemporal_exploration/schedules"/>
+    <arg name="grids_directory" default="/home/strands/spatiotemporal_exploration/3dmaps"/>
+
 
     <arg name="machine" default="localhost" />
     <arg name="user" default="" />
     <machine name="$(arg machine)" address="$(arg machine)" env-loader="$(optenv ROS_ENV_LOADER )" user="$(arg user)" default="true"/>
+
 
     <node pkg="exploration_tasks_generator" type="exploration_tasks_generator_node.py" name="exploration_tasks_generator_node" output="screen">
     </node>
@@ -14,7 +16,7 @@
     <node pkg="edge_exploration" type="exploration_slots.py" name="edge_exploration" output="screen">
     </node>
     
-    <include file="$(find topological_exploration)/launch/topological_exploration.launch">
+    <include file="$(find spatiotemporal_exploration)/launch/spatiotemporal_exploration.launch">
         <arg name="schedule_directory" value="$(arg schedule_directory)"/>
         <arg name="grids_directory" value="$(arg grids_directory)"/>
     </include>

@@ -372,8 +372,8 @@ int createTask(int slot)
         task.arguments.push_back(taskArg);
 
         task.start_after =  ros::Time(timeSlots[slot]+taskStartDelay,0);
-        task.end_before = ros::Time(timeSlots[slot]+taskDuration - 2,0);
-        task.max_duration = task.end_before - task.start_after;
+        task.end_before = task.start_after;//ros::Time(timeSlots[slot]+taskDuration - 2,0);
+        task.max_duration = ros::Time(timeSlots[slot]+taskDuration - 2,0) - task.start_after;//task.end_before - task.start_after;
         strands_executive_msgs::AddTask taskAdd;
         taskAdd.request.task = task;
         if (taskAdder.call(taskAdd))
@@ -795,7 +795,7 @@ int main(int argc,char* argv[])
     //to get relevant nodes
     nodeListClient = n.serviceClient<strands_navigation_msgs::GetTaggedNodes>("/topological_map_manager/get_tagged_nodes");
     //to create task objects
-    taskAdder = n.serviceClient<strands_executive_msgs::AddTask>("/task_executor/add_task");
+    taskAdder = n.serviceClient<strands_executive_msgs::AddTask>("/robot_routine/add_task");
     //save grid
 //    save_service = n.serviceClient<strands_exploration_msgs::SaveGrid>("/topological_exploration/save_grid");
 
@@ -840,6 +840,9 @@ int main(int argc,char* argv[])
 
     ros::spinOnce();
     maxTaskNumber = 1;
+
+    ros::Rate r(4);
+
     while (ros::ok())
     {
         ros::spinOnce();
@@ -858,6 +861,8 @@ int main(int argc,char* argv[])
                 numCurrentTasks++;
             }
         }
+
+        r.sleep();
     }
 
     delete fremengridSet;
