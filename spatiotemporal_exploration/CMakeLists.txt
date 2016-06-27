@@ -5,7 +5,7 @@ find_package(catkin REQUIRED COMPONENTS mongodb_store roscpp strands_executive_m
 
 
 generate_dynamic_reconfigure_options(
-  cfg/exploration.cfg
+  cfg/spatiotemporal_exploration.cfg
 )
 
 set ( CMAKE_CXX_FLAGS "-Ofast -march=native -mno-avx -ggdb")
