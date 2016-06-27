@@ -144,7 +144,7 @@ include_directories(
 #############
 
 install(PROGRAMS 
-    scripts/explorations_tasks_generator_node.py
+    scripts/exploration_tasks_generator_node.py
     DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
