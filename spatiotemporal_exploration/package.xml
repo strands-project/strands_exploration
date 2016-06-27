@@ -12,11 +12,11 @@
 
   <url type="github">http://github.com/strands-project/strands_exploration</url>
 
-
-
-
-  <buildtool_depend>catkin</buildtool_depend>
   
+  
+  
+  <buildtool_depend>catkin</buildtool_depend>
+
   <build_depend>roscpp</build_depend>
   <build_depend>genmsg</build_depend>
   <build_depend>mongodb_store</build_depend>
