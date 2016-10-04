@@ -16,6 +16,6 @@
         <param name="with_config_file" value="$(arg with_config_file)" type="boolean"/>
         <param name="people_srv" value="$(arg people_srv)" type="string"/>
         <param name="activity_srv" value="$(arg activity_srv)" type="string"/>
-        <param name="exploration_method" value="$(arg exploration_method")" type="string"/>
+        <param name="exploration_method" value="$(arg exploration_method)" type="string"/>
     </node>
 </launch>

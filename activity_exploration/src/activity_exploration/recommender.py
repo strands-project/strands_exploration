@@ -5,7 +5,7 @@ import yaml
 import rospy
 import roslib
 import random
-import std_srvs.srv import Empty
+from std_srvs.srv import Empty
 from region_observation.util import is_intersected
 from activity_exploration.srv import ChangeMethodSrv
 from strands_navigation_msgs.msg import TopologicalMap
@@ -64,14 +64,14 @@ class ActivityRecommender(object):
         )
         rospy.sleep(0.1)
         rospy.Service(
-            '%s/activity_rcmd_srv' % rospy.get_name(),
+            '/exploration_services/activity_exp_srv',
             GetExplorationTasks, self._srv_cb
         )
         rospy.Service(
             '%s/change_method_srv' % rospy.get_name(),
             ChangeMethodSrv, self._change_srv_cb
         )
-        rospy.loginfo("%s/activity_rcmd_srv service is ready..." % rospy.get_name())
+        rospy.loginfo("/exploration_services/activity_exp_srv service is ready...")
         rospy.sleep(0.1)
 
     def _change_srv_cb(self, msg):
@@ -205,6 +205,6 @@ class ActivityRecommender(object):
         return roi_wp_hashmap
 
 if __name__ == '__main__':
-    rospy.init_node("arms")
+    rospy.init_node("activity_exploration")
     ar = ActivityRecommender(rospy.get_name())
     rospy.spin()
