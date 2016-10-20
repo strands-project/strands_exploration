@@ -16,9 +16,11 @@ class DummyBidder(object):
         
         rospy.Timer(rospy.Duration(60), self.add_task)
         
-        rospy.Service("add_budget", Empty, self.add_budget)
-        rospy.Service("bid", Empty, self.bid)
-        rospy.Service("get_info", Empty, self.get_info)
+        
+        ##DEBUGGING SERVICES
+        #rospy.Service("add_budget", Empty, self.add_budget)
+        #rospy.Service("bid", Empty, self.bid)
+        #rospy.Service("get_info", Empty, self.get_info)
         
      
      

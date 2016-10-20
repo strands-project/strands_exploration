@@ -21,7 +21,7 @@ class ExplorationBidder(object):
         
         self.task_event_sub = rospy.Subscriber('/task_executor/events', TaskEvent, self.process_task_event, queue_size = None)
         
-        REAL
+        #REAL
         self.period = rospy.Duration(rospy.get_param('~period', 60*60*24))
         self.tokens_per_period = rospy.get_param('/exploration_bidding/tokens_per_period', float(60*60*12)/3)
         
