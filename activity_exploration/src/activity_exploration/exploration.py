@@ -6,22 +6,29 @@ import rospy
 import roslib
 import random
 from std_srvs.srv import Empty
-from region_observation.util import is_intersected
+
 from activity_exploration.srv import ChangeMethodSrv
-from strands_navigation_msgs.msg import TopologicalMap
-from people_temporal_patterns.srv import PeopleEstimateSrv
 from activity_exploration.srv import ChangeMethodSrvResponse
-from strands_exploration_msgs.srv import GetExplorationTasks
+from activity_exploration.budget_control import BudgetControl
+
+from people_temporal_patterns.srv import PeopleEstimateSrv
 from activity_temporal_patterns.srv import ActivityEstimateSrv
-from region_observation.util import robot_view_cone, get_soma_info
+
+from strands_navigation_msgs.msg import TopologicalMap
+from strands_exploration_msgs.srv import GetExplorationTasks
 from strands_exploration_msgs.srv import GetExplorationTasksResponse
+
+from region_observation.util import is_intersected
+from region_observation.util import robot_view_cone, get_soma_info
 
 
 class ActivityRecommender(object):
 
-    def __init__(self, name):
+    def __init__(self):
         rospy.loginfo("Initiating activity exploration...")
         self.exploration_method = rospy.get_param("~exploration_method", "ubc")
+        self.budget_control = BudgetControl()
+        self._exp_req_dur = rospy.Duration(rospy.get_param("~exp_req_duration", 3600))
         rospy.loginfo(
             "Connecting to %s service..." % rospy.get_param(
                 "~people_srv", "/people_counter/people_estimate"
@@ -31,25 +38,19 @@ class ActivityRecommender(object):
             rospy.get_param("~people_srv", "/people_counter/people_estimate"),
             PeopleEstimateSrv
         )
+        self.people_srv.wait_for_service()
         srv_name = rospy.get_param("~people_srv", "/people_counter/people_estimate")
         srv_name = srv_name.split("/")[1]
         self.people_restart_srv = rospy.ServiceProxy("/"+srv_name+"/restart", Empty)
-        self.people_srv.wait_for_service()
+        self.people_restart_srv.wait_for_service()
         rospy.sleep(0.1)
         act_srv_name = rospy.get_param("~activity_srv", "")
         self.act_srv = None
         if act_srv_name != "":
             rospy.loginfo("Connecting to %s service..." % act_srv_name)
-            self.act_srv = rospy.ServiceProxy(
-                rospy.get_param("~activity_srv", "/activity_counter/activity_estimate"),
-                ActivityEstimateSrv
-            )
+            self.act_srv = rospy.ServiceProxy(act_srv_name, ActivityEstimateSrv)
             self.act_srv.wait_for_service()
-        # self.poisson_consent = PoissonWrapper(
-        #     rospy.get_param("~consent_topic", "/skeleton_data/consent_ret"),
-        #     String, "data", "nothing", dict(), time_window*3, time_increment, 1440
-        # )
-        rospy.sleep(0.1)
+            rospy.sleep(0.1)
         self.epsilon = 0.15
         self.topo_map = None
         if rospy.get_param("~with_config_file", False):
@@ -62,16 +63,13 @@ class ActivityRecommender(object):
         rospy.loginfo(
             "Region ids and their nearest waypoints: %s" % str(self.region_wps)
         )
+        rospy.loginfo("Connecting to /exploration_services/SOMETHING service...")
+        self._exp_add_srv = rospy.ServiceProxy("/exploration_services/add", GetExplorationTasks)
         rospy.sleep(0.1)
-        rospy.Service(
-            '/exploration_services/activity_exp_srv',
-            GetExplorationTasks, self._srv_cb
-        )
         rospy.Service(
             '%s/change_method_srv' % rospy.get_name(),
             ChangeMethodSrv, self._change_srv_cb
         )
-        rospy.loginfo("/exploration_services/activity_exp_srv service is ready...")
         rospy.sleep(0.1)
 
     def _change_srv_cb(self, msg):
@@ -82,13 +80,25 @@ class ActivityRecommender(object):
         self.people_restart_srv()
         return ChangeMethodSrvResponse()
 
-    def _srv_cb(self, msg):
+    def spin(self):
+        start = rospy.Time.now()
+        while not rospy.is_shutdown():
+            current = rospy.Time.now()
+            # asking for exploration every self._exp_req_dur
+            if (current - start) > self._exp_req_dur:
+                self.request_exploration(current)
+                start = current
+            rospy.sleep(60)
+
+    def request_exploration(self, start_time):
+        end_time = start_time + self._exp_req_dur
         rospy.loginfo(
-            "Got a request to find waypoints to visit between %d and %d"
-            % (msg.start_time.secs, msg.end_time.secs)
+            "Requesting a visit between %d and %d"
+            % (start_time.secs, end_time.secs)
         )
-        people_estimates = self.people_srv(msg.start_time, msg.end_time, False)
-        visit_plan = list()
+        budget = self.budget_control.get_allocated_budget(start_time, end_time)
+        is_ubc = self.exploration_method == "ubc"
+        people_estimates = self.people_srv(start_time, end_time, is_ubc, False)
         visit_plan = [
             (estimate, people_estimates.region_ids[ind]) for ind, estimate in enumerate(
                 people_estimates.estimates)
@@ -96,7 +106,7 @@ class ActivityRecommender(object):
         visit_plan = sorted(visit_plan, key=lambda i: i[0], reverse=True)
         if self.exploration_method != "ubc":
             visit_plan = self._check_visit_plan(
-                msg.start_time, msg.end_time, visit_plan
+                start_time, end_time, visit_plan
             )
         suggested_wps = list()
         suggested_score = list()
@@ -114,14 +124,13 @@ class ActivityRecommender(object):
                     "No waypoint covers region %s, removing region..." % i[1]
                 )
         task = GetExplorationTasksResponse(
-            suggested_wps[:5], suggested_score[:5]
+            suggested_wps[:3], suggested_score[:3], budget
         )
         rospy.loginfo("Recommended waypoints to visit: %s" % str(task))
-        # task = self._check_consent(msg, task)
         return task
 
     def _check_visit_plan(self, start_time, end_time, visit_plan):
-        scales = self.people_srv(start_time, end_time, True)
+        scales = self.people_srv(start_time, end_time, False, True)
         scale_plan = list()
         for ind, scale in enumerate(scales.estimates):
             scale_plan.append((scale, scales.region_ids[ind]))
@@ -144,19 +153,6 @@ class ActivityRecommender(object):
                             break
                 visit_plan = new_visit_plan
         return visit_plan
-
-    # def _check_consent(self, msg, task):
-    #     rates_consent = self.poisson_consent.retrieve_from_to(
-    #         msg.start_time, msg.end_time
-    #     )
-    #     try:
-    #         avg = sum(rates_consent.values()) / float(len(rates_consent.values()))
-    #     except:
-    #         return task
-    #     if avg >= rospy.get_param("~consent_rate", 0.8):
-    #         rospy.loginfo("Waypoint's order: %s is shuffled" % str(task.task_definition))
-    #         random.shuffle(task.task_definition)
-    #     return task
 
     def _topo_map_cb(self, topo_map):
         self.topo_map = topo_map
@@ -207,4 +203,5 @@ class ActivityRecommender(object):
 if __name__ == '__main__':
     rospy.init_node("activity_exploration")
     ar = ActivityRecommender(rospy.get_name())
+    ar.spin()
     rospy.spin()
