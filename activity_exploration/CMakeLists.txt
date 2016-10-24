@@ -2,14 +2,16 @@ cmake_minimum_required(VERSION 2.8.3)
 project(activity_exploration)
 
 find_package(catkin REQUIRED COMPONENTS
-  region_observation
   roslib
   rospy
   std_msgs
-  strands_exploration_msgs
+  std_srvs
+  region_observation
+  strands_executive_msgs
   strands_navigation_msgs
   people_temporal_patterns
   activity_temporal_patterns
+  exploration_bid_manager
 )
 
 catkin_python_setup()
@@ -49,7 +51,7 @@ generate_messages(
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES activity_exploration
-  CATKIN_DEPENDS region_observation roslib rospy strands_exploration_msgs strands_navigation_msgs people_temporal_patterns activity_temporal_patterns std_msgs
+  CATKIN_DEPENDS region_observation roslib rospy strands_executive_msgs strands_navigation_msgs people_temporal_patterns activity_temporal_patterns std_msgs std_srvs exploration_bid_manager
 #  DEPENDS system_lib
 )
 

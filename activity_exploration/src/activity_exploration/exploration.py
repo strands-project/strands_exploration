@@ -14,9 +14,8 @@ from activity_exploration.budget_control import BudgetControl
 from people_temporal_patterns.srv import PeopleEstimateSrv
 from activity_temporal_patterns.srv import ActivityEstimateSrv
 
+from strands_executive_msgs.msg import Task
 from strands_navigation_msgs.msg import TopologicalMap
-from strands_exploration_msgs.srv import GetExplorationTasks
-from strands_exploration_msgs.srv import GetExplorationTasksResponse
 
 from region_observation.util import is_intersected
 from region_observation.util import robot_view_cone, get_soma_info
@@ -63,14 +62,15 @@ class ActivityRecommender(object):
         rospy.loginfo(
             "Region ids and their nearest waypoints: %s" % str(self.region_wps)
         )
-        rospy.loginfo("Connecting to /exploration_services/SOMETHING service...")
-        self._exp_add_srv = rospy.ServiceProxy("/exploration_services/add", GetExplorationTasks)
+        # rospy.loginfo("Connecting to /exploration_services/SOMETHING service...")
+        # self._exp_add_srv = rospy.ServiceProxy("/exploration_services/add", GetExplorationTasks)
         rospy.sleep(0.1)
         rospy.Service(
             '%s/change_method_srv' % rospy.get_name(),
             ChangeMethodSrv, self._change_srv_cb
         )
         rospy.sleep(0.1)
+        rospy.Timer(self._exp_req_dur, self.request_exploration)
 
     def _change_srv_cb(self, msg):
         rospy.loginfo("An exploration method change is requested")
@@ -80,17 +80,18 @@ class ActivityRecommender(object):
         self.people_restart_srv()
         return ChangeMethodSrvResponse()
 
-    def spin(self):
-        start = rospy.Time.now()
-        while not rospy.is_shutdown():
-            current = rospy.Time.now()
-            # asking for exploration every self._exp_req_dur
-            if (current - start) > self._exp_req_dur:
-                self.request_exploration(current)
-                start = current
-            rospy.sleep(60)
+    # def spin(self):
+    #     start = rospy.Time.now()
+    #     while not rospy.is_shutdown():
+    #         current = rospy.Time.now()
+    #         # asking for exploration every self._exp_req_dur
+    #         if (current - start) > self._exp_req_dur:
+    #             self.request_exploration(current)
+    #             start = current
+    #         rospy.sleep(60)
 
-    def request_exploration(self, start_time):
+    def request_exploration(self):
+        start_time = rospy.Time.now()
         end_time = start_time + self._exp_req_dur
         rospy.loginfo(
             "Requesting a visit between %d and %d"
@@ -123,10 +124,17 @@ class ActivityRecommender(object):
                 rospy.loginfo(
                     "No waypoint covers region %s, removing region..." % i[1]
                 )
-        task = GetExplorationTasksResponse(
-            suggested_wps[:3], suggested_score[:3], budget
+        # task = GetExplorationTasksResponse(
+        #     suggested_wps[:3], suggested_score[:3], budget
+        # )
+        wp = suggested_wps[random.randint(2)]
+        duration = rospy.Duration((end_time - start_time).secs/3)
+        task = Task(
+            action="record_skeletons", start_node_id=wp, end_node_id=wp,
+            start_after=start_time, end_before=end_time, max_duration=duration
         )
-        rospy.loginfo("Recommended waypoints to visit: %s" % str(task))
+        rospy.loginfo("Task to be requested: %s" % str(task))
+        self.budget_control.bidder.add_task_bid(task, budget)
         return task
 
     def _check_visit_plan(self, start_time, end_time, visit_plan):

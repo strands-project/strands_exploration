@@ -4,8 +4,8 @@
 import rospy
 import datetime
 import threading
-from strands_exploration_msgs.srv import GetBudgetInfo
 from people_temporal_patterns.srv import PeopleEstimateSrv
+from exploration_bid_manager.exploration_bidder import ExplorationBidder
 
 
 class BudgetControl(object):
@@ -24,11 +24,12 @@ class BudgetControl(object):
         self._update_budget_date = datetime.datetime(
             temp.year, temp.month, temp.day, 0, 0
         )
-        rospy.loginfo("Connect to /exploration_services/budget_info service...")
-        self._exp_info_srv = rospy.ServiceProxy(
-            "/exploration_services/budget_info", GetBudgetInfo
-        )
-        self._exp_info_srv.wait_for_service()
+        self.bidder = ExplorationBidder()
+        # rospy.loginfo("Connect to /exploration_services/budget_info service...")
+        # self._exp_info_srv = rospy.ServiceProxy(
+        #     "/exploration_services/budget_info", GetBudgetInfo
+        # )
+        # self._exp_info_srv.wait_for_service()
         people_srv_name = rospy.get_param(
             "~people_srv", "/people_counter/people_estimate"
         )
@@ -78,7 +79,8 @@ class BudgetControl(object):
             if self.budget_alloc is None or (
                 self._update_budget_date-current_time
             ) >= datetime.timedelta(days=1):
-                budget = self._exp_info_srv("activity_exploration")
+                # budget = self._exp_info_srv("activity_exploration")
+                budget = self.bidder.available_tokens - self.bidder.currently_bid_tokens
                 total_budget = budget.budget
                 total_mult = float(sum([i[2] for i in self._time_alloc]))
                 budget_alloc = list()
@@ -92,7 +94,7 @@ class BudgetControl(object):
     def get_allocated_budget(self, start_time, end_time):
         start = datetime.datetime.fromtimestamp(start_time.secs)
         start = datetime.time(start.hour, start.minute)
-        budget = self._exp_info_srv("activity_exploration")
+        budget = self.bidder.available_tokens - self.bidder.currently_bid_tokens
         total_budget = budget.budget
         non_allocated = 0
         end_budget_time = None
