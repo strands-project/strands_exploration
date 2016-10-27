@@ -14,8 +14,8 @@ from activity_exploration.budget_control import BudgetControl
 from people_temporal_patterns.srv import PeopleEstimateSrv
 from activity_temporal_patterns.srv import ActivityEstimateSrv
 
-from strands_executive_msgs.msg import Task
 from strands_navigation_msgs.msg import TopologicalMap
+from strands_executive_msgs.msg import Task, task_utils
 
 from region_observation.util import is_intersected
 from region_observation.util import robot_view_cone, get_soma_info
@@ -25,6 +25,7 @@ class ActivityRecommender(object):
 
     def __init__(self):
         rospy.loginfo("Initiating activity exploration...")
+        self.soma_config = rospy.get_param("~soma_config", "activity_exploration")
         self.exploration_method = rospy.get_param("~exploration_method", "ubc")
         self.budget_control = BudgetControl()
         self._exp_req_dur = rospy.Duration(rospy.get_param("~exp_req_duration", 3600))
@@ -55,15 +56,11 @@ class ActivityRecommender(object):
         if rospy.get_param("~with_config_file", False):
             self.region_wps = self._get_waypoints_from_file()
         else:
-            self.region_wps = self._get_waypoints(
-                rospy.get_param("~soma_config", "activity_exploration")
-            )
+            self.region_wps = self._get_waypoints(self.soma_config)
 
         rospy.loginfo(
             "Region ids and their nearest waypoints: %s" % str(self.region_wps)
         )
-        # rospy.loginfo("Connecting to /exploration_services/SOMETHING service...")
-        # self._exp_add_srv = rospy.ServiceProxy("/exploration_services/add", GetExplorationTasks)
         rospy.sleep(0.1)
         rospy.Service(
             '%s/change_method_srv' % rospy.get_name(),
@@ -124,15 +121,16 @@ class ActivityRecommender(object):
                 rospy.loginfo(
                     "No waypoint covers region %s, removing region..." % i[1]
                 )
-        # task = GetExplorationTasksResponse(
-        #     suggested_wps[:3], suggested_score[:3], budget
-        # )
-        wp = suggested_wps[random.randint(2)]
+        idx = random.randint(2)
+        wp = suggested_wps[idx]
         duration = rospy.Duration((end_time - start_time).secs/3)
         task = Task(
             action="record_skeletons", start_node_id=wp, end_node_id=wp,
             start_after=start_time, end_before=end_time, max_duration=duration
         )
+        task_utils.add_duration_argument(task, duration)
+        task_utils.add_string_argument(task, visit_plan[idx][1])
+        task_utils.add_string_argument(task, self.soma_config)
         rospy.loginfo("Task to be requested: %s" % str(task))
         self.budget_control.bidder.add_task_bid(task, budget)
         return task
