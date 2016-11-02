@@ -41,6 +41,7 @@ class EdgeBider(object):
         
         self.get_info()
         self.timer_obj = rospy.Timer(rospy.Duration(self.time_of_slots), self.get_exploration_task_cb)
+        self.timer_obj2 = rospy.Timer(rospy.Duration(30), self.get_info_cb)
         self.get_exploration_task()
         rospy.spin()
         
@@ -56,7 +57,7 @@ class EdgeBider(object):
         tsktoad=[]
         print "exploration time"
         explotime = rospy.Duration.from_sec(self.time_of_slots)
-        self.timeslot_start = rospy.Time.now()+rospy.Duration.from_sec(300)
+        self.timeslot_start = rospy.Time.now()+rospy.Duration.from_sec(10)
         timeslot = self.timeslot_start+rospy.Duration.from_sec(self.time_of_slots/2)
         self.timeslot_end=self.timeslot_start+rospy.Duration.from_sec(self.time_of_slots)
         print timeslot.secs, explotime.secs
@@ -93,7 +94,7 @@ class EdgeBider(object):
             e['tokens']=int(math.ceil((tskscr[i]*tokens_to_use)/total_entropy))
             e['origin']=tstr[0]
             e['goal']=tstr[1]
-            e['action']='(F ('+tstr[0]+' & (X '+tstr[1]+')))'
+            e['action']='(F ("'+tstr[0]+'" & (X "'+tstr[1]+'")))'
             tsktoad.append(e)
 
         print tokens_to_use, total_entropy
@@ -153,8 +154,10 @@ class EdgeBider(object):
     def add_tasks(self, tasks_to_add):
         print self.bidder.available_tokens
         print self.bidder.currently_bid_tokens
-        for i in tasks_to_add:            
-            task=Task(action= i['action'],start_node_id=i['origin'],end_node_id=i['goal'],start_after=self.timeslot_start,end_before=self.timeslot_end,max_duration=rospy.Duration(2*60))
+        for i in tasks_to_add:  
+            wp1=i['origin']
+            wp2=i['goal']#+'"'
+            task=Task(action= i['action'],start_node_id=wp1,end_node_id=wp2,start_after=self.timeslot_start,end_before=self.timeslot_end,max_duration=rospy.Duration(2*60))
             bid = i['tokens']
             self.bidder.add_task_bid(task, bid)
 
@@ -201,7 +204,8 @@ class EdgeBider(object):
         except rospy.ServiceException, e:
             print "Service call failed: %s"%e
         
-
+    def get_info_cb(self, events):
+        self.get_info()
 
     def get_info(self):
         print "AVAILABLE TOKENS: ", self.bidder.available_tokens
@@ -247,6 +251,7 @@ class EdgeBider(object):
 
     def shutdown(self):
         self.timer_obj.shutdown()
+        self.timer_obj2.shutdown()
         print "BYE"
 
 if __name__ == '__main__':
