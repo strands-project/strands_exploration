@@ -719,7 +719,7 @@ int main(int argc,char* argv[])
     //to visualize the 3D grid markers in rviz
     grid_markers_pub = n.advertise<visualization_msgs::Marker>("/visualize_grid", 100);
     //scheduler publisher (for bidder only)
-    schedule_pub = n.advertise<strands_exploration_msgs::ExplorationSchedule>("/exploration_schedule", 100);
+    schedule_pub = n.advertise<strands_exploration_msgs::ExplorationSchedule>("/exploration_schedule", 100, true);
 
 
     /*** SERVICES ***/
