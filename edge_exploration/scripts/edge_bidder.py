@@ -88,19 +88,21 @@ class EdgeBider(object):
         tokens_to_use = self.bidder.available_tokens/((3600*24)/self.time_of_slots)
         total_entropy = sum(tskscr)
 
+        total_tokens=0
         for i in range(len(tskscr)):
             e={}
             tstr= exptsk[i].split('_')
             e['tokens']=int(math.ceil((tskscr[i]*tokens_to_use)/total_entropy))
+            total_tokens+=e['tokens']
             e['origin']=tstr[0]
             e['goal']=tstr[1]
             e['action']='(F ("'+tstr[0]+'" & (X "'+tstr[1]+'")))'
             tsktoad.append(e)
 
-        print tokens_to_use, total_entropy
+        print tokens_to_use, total_tokens, total_entropy
         
         print exptsk, tskscr
-        print tsktoad
+        #print tsktoad
         self.add_tasks(tsktoad)
 
 
@@ -152,8 +154,8 @@ class EdgeBider(object):
 
         
     def add_tasks(self, tasks_to_add):
-        print self.bidder.available_tokens
-        print self.bidder.currently_bid_tokens
+        #print self.bidder.available_tokens
+        #print self.bidder.currently_bid_tokens
         for i in tasks_to_add:  
             wp1=i['origin']
             wp2=i['goal']#+'"'
@@ -210,10 +212,10 @@ class EdgeBider(object):
     def get_info(self):
         print "AVAILABLE TOKENS: ", self.bidder.available_tokens
         print "BID TOKENS: ", self.bidder.currently_bid_tokens
-        print "ADDED TOKENS: ", self.bidder.currently_added_tokens
-        print "ADDED TASKS: ", self.bidder.added_tasks
+        #print "ADDED TOKENS: ", self.bidder.currently_added_tokens
+        #print "ADDED TASKS: ", self.bidder.added_tasks
         print "---------------------------------------------------------------"
-        print "QUEUED TASKS: ", self.bidder.queued_tasks
+        #print "QUEUED TASKS: ", self.bidder.queued_tasks
         print "\n"
         return []
 
