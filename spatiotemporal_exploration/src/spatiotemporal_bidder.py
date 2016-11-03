@@ -6,6 +6,7 @@ from math import ceil
 from strands_executive_msgs.msg import Task
 from exploration_bid_manager.exploration_bidder import ExplorationBidder
 from strands_exploration_msgs.msg import ExplorationSchedule
+from mongodb_store.message_store import  StringPair
 
 class SpatioTemporalBidder(object):
 
@@ -13,10 +14,10 @@ class SpatioTemporalBidder(object):
         
         self.bidder = ExplorationBidder()
         self.exploration_schedule = ExplorationSchedule()
-        self.slot_durantion = 0;
+        self.slot_duration = 0;
         self.num_slots = 0;
         
-        #every 2 hours checks bucget and bids
+        #every 2 hours checks budget and bids
         rospy.Timer(rospy.Duration(7200), self.add_task)
         rospy.Subscriber("/spatiotemporal_exploration/exploration_schedule", ExplorationSchedule, self.schedule_listener)
     
@@ -67,13 +68,17 @@ class SpatioTemporalBidder(object):
                         self.e['entropy']=self.exploration_schedule.entropy[i]
                 self.schedule_sorted.append(e)
                                 
+                taskArg = StringPair()
+                taskArg.second = "complete"
+                
                 task=Task(action= 'do_sweep',
                         start_node_id=self.schedule_sorted.nodeID[0],
                         end_node_id=self.schedule_sorted.nodeID[0],
                         start_after=self.schedule_sorted.timeInfo[0],
                         end_before=self.schedule_sorted.timeInfo[0] + self.slot_duration,
-                        max_duration=self.slot_duration)
-                        
+                        max_duration=self.slot_duration,
+                        arguments = taskArg)
+                                        
                 bidRatio = (self.num_slots - nextSlot)/self.slot_duration        
                 bid = int(ceil((self.bidder.available_tokens- self.bidder.currently_bid_tokens)/bidRatio))
                 self.bidder.add_task_bid(task, bid)
