@@ -14,8 +14,9 @@ from activity_exploration.budget_control import BudgetControl
 from people_temporal_patterns.srv import PeopleEstimateSrv
 from activity_temporal_patterns.srv import ActivityEstimateSrv
 
+from strands_executive_msgs.msg import Task
+from strands_executive_msgs import task_utils
 from strands_navigation_msgs.msg import TopologicalMap
-from strands_executive_msgs.msg import Task, task_utils
 
 from region_observation.util import is_intersected
 from region_observation.util import robot_view_cone, get_soma_info
@@ -208,6 +209,6 @@ class ActivityRecommender(object):
 
 if __name__ == '__main__':
     rospy.init_node("activity_exploration")
-    ar = ActivityRecommender(rospy.get_name())
-    ar.spin()
+    ar = ActivityRecommender()
+    # ar.spin()
     rospy.spin()

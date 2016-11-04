@@ -72,7 +72,7 @@ class BudgetControl(object):
         # assuming arg for BudgetInfo is string of the name of exploration
         # returning budge left
         while not rospy.is_shutdown():
-            temp = datetime.datetime.fromtimestamp(rospy.Time.now())
+            temp = datetime.datetime.fromtimestamp(rospy.Time.now().secs)
             current_time = datetime.datetime(
                 temp.year, temp.month, temp.day, 0, 0
             )
@@ -80,8 +80,7 @@ class BudgetControl(object):
                 self._update_budget_date-current_time
             ) >= datetime.timedelta(days=1):
                 # budget = self._exp_info_srv("activity_exploration")
-                budget = self.bidder.available_tokens - self.bidder.currently_bid_tokens
-                total_budget = budget.budget
+                total_budget = self.bidder.available_tokens - self.bidder.currently_bid_tokens
                 total_mult = float(sum([i[2] for i in self._time_alloc]))
                 budget_alloc = list()
                 for i in self._time_alloc:
@@ -94,8 +93,7 @@ class BudgetControl(object):
     def get_allocated_budget(self, start_time, end_time):
         start = datetime.datetime.fromtimestamp(start_time.secs)
         start = datetime.time(start.hour, start.minute)
-        budget = self.bidder.available_tokens - self.bidder.currently_bid_tokens
-        total_budget = budget.budget
+        total_budget = self.bidder.available_tokens - self.bidder.currently_bid_tokens
         non_allocated = 0
         end_budget_time = None
         for i in self.budget_alloc:
