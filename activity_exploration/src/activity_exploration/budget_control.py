@@ -110,5 +110,6 @@ class BudgetControl(object):
         total_estimate = sum(sorted(people_estimates.estimates, reverse=True)[:3])
         people_estimates = self._people_srv(start_time, end_time, True, False)
         portion_estimate = sum(sorted(people_estimates.estimates, reverse=True)[:3])
-        allocated_budget = min([int(portion_estimate/total_estimate*2), allocated_budget])
+        if total_estimate > 0:
+            allocated_budget = min([int(portion_estimate/total_estimate*2), allocated_budget])
         return allocated_budget

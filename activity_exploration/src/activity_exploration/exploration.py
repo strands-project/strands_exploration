@@ -87,7 +87,7 @@ class ActivityRecommender(object):
     #             start = current
     #         rospy.sleep(60)
 
-    def request_exploration(self):
+    def request_exploration(self, event):
         start_time = rospy.Time.now()
         end_time = start_time + self._exp_req_dur
         rospy.loginfo(
