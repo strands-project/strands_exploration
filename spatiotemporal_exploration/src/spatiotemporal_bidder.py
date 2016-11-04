@@ -14,12 +14,13 @@ class SpatioTemporalBidder(object):
         
         self.bidder = ExplorationBidder()
         self.exploration_schedule = ExplorationSchedule()
+        self.bidder_timer = rospy.get_param("~bidder_timer",3600)
         self.slot_duration = 0;
         self.num_slots = 0;
         
         #every 2 hours checks budget and bids
-        rospy.Timer(rospy.Duration(7200), self.add_task)
-        rospy.Subscriber("/spatiotemporal_exploration/exploration_schedule", ExplorationSchedule, self.schedule_listener)
+        rospy.Timer(rospy.Duration(self.bidder_timer), self.add_task)#7200
+        rospy.Subscriber("/exploration_schedule", ExplorationSchedule, self.schedule_listener)
     
 
     def schedule_listener(self, data):
@@ -54,33 +55,32 @@ class SpatioTemporalBidder(object):
 
             #get current time slot:            
             nextSlot = self.getCurrentTimeSlot(self.slot_duration) + 1
-            lookAhead = 7200/self.slot_duration
+            lookAhead = self.bidder_timer/self.slot_duration
             
             maxSlot = nextSlot + lookAhead
             if maxSlot - nextSlot > 1:             
                 #reorder slots based on the entropy for each 2h interval
                 for i in range(nextSlot, maxSlot):
                     self.schedule_sorted = []
-                    for i in range():
-                        e={}
-                        self.e['timeInfo']=self.exploration_schedule.timeInfo[i]
-                        self.e['nodeID']=self.exploration_schedule.nodeID[i]
-                        self.e['entropy']=self.exploration_schedule.entropy[i]
+                    e={}
+                    self.e['timeInfo']=self.exploration_schedule.timeInfo[i]
+                    self.e['nodeID']=self.exploration_schedule.nodeID[i]
+                    self.e['entropy']=self.exploration_schedule.entropy[i]
                 self.schedule_sorted.append(e)
                                 
                 taskArg = StringPair()
                 taskArg.second = "complete"
                 
                 task=Task(action= 'do_sweep',
-                        start_node_id=self.schedule_sorted.nodeID[0],
-                        end_node_id=self.schedule_sorted.nodeID[0],
-                        start_after=self.schedule_sorted.timeInfo[0],
-                        end_before=self.schedule_sorted.timeInfo[0] + self.slot_duration,
+                        start_node_id=self.schedule_sorted.nodeID[-1],
+                        end_node_id=self.schedule_sorted.nodeID[-1],
+                        start_after=self.schedule_sorted.timeInfo[-1],
+                        end_before=self.schedule_sorted.timeInfo[-1] + self.slot_duration,
                         max_duration=self.slot_duration,
                         arguments = taskArg)
                                         
-                bidRatio = (self.num_slots - nextSlot)/self.slot_duration        
-                bid = int(ceil((self.bidder.available_tokens- self.bidder.currently_bid_tokens)/bidRatio))
+                bidRatio = (self.num_slots - nextSlot)/self.bidder_timer        
+                bid = int(ceil((self.bidder.available_tokens - self.bidder.currently_bid_tokens)*bidRatio))
                 self.bidder.add_task_bid(task, bid)
         
      
