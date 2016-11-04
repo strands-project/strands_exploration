@@ -58,11 +58,11 @@ class SpatioTemporalBidder(object):
             lookAhead = self.bidder_timer/self.slot_duration
             
             maxSlot = nextSlot + lookAhead
-            if maxSlot - nextSlot > 1:             
+            if maxSlot - nextSlot > 1:        
+                e={}
                 #reorder slots based on the entropy for each 2h interval
                 for i in range(nextSlot, maxSlot):
                     self.schedule_sorted = []
-                    e={}
                     self.e['timeInfo']=self.exploration_schedule.timeInfo[i]
                     self.e['nodeID']=self.exploration_schedule.nodeID[i]
                     self.e['entropy']=self.exploration_schedule.entropy[i]
