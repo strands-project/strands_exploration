@@ -93,15 +93,17 @@ class EdgeBider(object):
             e={}
             tstr= exptsk[i].split('_')
             e['tokens']=int(math.ceil((tskscr[i]*tokens_to_use)/total_entropy))
+            if e['tokens'] <= 0:
+                e['tokens']=1
             total_tokens+=e['tokens']
             e['origin']=tstr[0]
             e['goal']=tstr[1]
             e['action']='(F ("'+tstr[0]+'" & (X "'+tstr[1]+'")))'
             tsktoad.append(e)
 
-        print tokens_to_use, total_tokens, total_entropy
+        #print tokens_to_use, total_tokens, total_entropy
         
-        print exptsk, tskscr
+        #print exptsk, tskscr
         #print tsktoad
         self.add_tasks(tsktoad)
 
