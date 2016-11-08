@@ -1,6 +1,6 @@
 <launch>
     <arg name="soma_config"/>
-    <arg name="with_config_file" default="false"/>
+    <arg name="with_config_file" default="true"/>
     <arg name="exp_req_duration" default="3600"/>
     <arg name="people_srv" default="/people_counter/people_estimate"/>
     <!-- <arg name="activity_srv" default="/activity_counter/activity_estimate"/> -->
@@ -12,7 +12,7 @@
 
     <machine name="$(arg machine)" address="$(arg machine)" env-loader="$(optenv ROS_ENV_LOADER )" user="$(arg user)" default="true"/>
 
-    <node pkg="activity_exploration" type="recommender.py" name="arms" output="screen" respawn="false">
+    <node pkg="activity_exploration" type="exploration.py" name="arms" output="screen" respawn="false">
         <param name="soma_config" value="$(arg soma_config)" type="string"/>
         <param name="with_config_file" value="$(arg with_config_file)" type="boolean"/>
         <param name="exp_req_duration" value="$(arg exp_req_duration)" type="int"/>
