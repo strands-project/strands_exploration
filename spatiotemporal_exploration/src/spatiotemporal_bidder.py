@@ -21,6 +21,9 @@ class SpatioTemporalBidder(object):
         #every 2 hours checks budget and bids
         rospy.Timer(rospy.Duration(self.bidder_timer), self.add_task)#7200
         rospy.Subscriber("/exploration_schedule", ExplorationSchedule, self.schedule_listener)
+        
+        rospy.sleep(10)
+        self.add_task(None)
     
 
     def schedule_listener(self, data):
