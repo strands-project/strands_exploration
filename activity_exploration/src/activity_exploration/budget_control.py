@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-
+import time
 import rospy
 import datetime
 import threading
@@ -102,6 +102,12 @@ class BudgetControl(object):
             elif start <= i[1]:
                 end_budget_time = i[1]
         assert end_budget_time is not None, "end_budget_time is not assigned somehow"
+        tmp = datetime.datetime.fromtimestamp(start_time.secs)
+        end_budget_time = datetime.datetime(
+            tmp.year, tmp.month, tmp.day, end_budget_time.hour,
+            end_budget_time.minute, end_budget_time.second
+        )
+        end_budget_time = rospy.Time(time.mktime(end_budget_time.timetuple()))
         allocated_budget = total_budget - non_allocated
         # make allocated budget proportional to the importance of exploration
         people_estimates = self._people_srv(start_time, end_budget_time, True, False)
