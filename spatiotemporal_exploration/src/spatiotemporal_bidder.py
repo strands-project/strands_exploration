@@ -63,22 +63,22 @@ class SpatioTemporalBidder(object):
                 self.schedule_sorted = []
                 #reorder slots based on the entropy for each 2h interval
                 for i in range(nextSlot, maxSlot):
-                    e={}
+                    e=dict()
                     e['timeInfo']=self.exploration_schedule.timeInfo[i]
                     e['nodeID']=self.exploration_schedule.nodeID[i]
                     e['entropy']=self.exploration_schedule.entropy[i]
                     self.schedule_sorted.append(e)
                     
                 self.schedule_sorted = sorted(self.schedule_sorted, key=lambda k:k['entropy'])
-                                
+
                 taskArg = StringPair()
                 taskArg.second = "complete"
                 
                 task=Task(action= 'do_sweep',
-                        start_node_id=self.schedule_sorted.nodeID[-1],
-                        end_node_id=self.schedule_sorted.nodeID[-1],
-                        start_after=self.schedule_sorted.timeInfo[-1],
-                        end_before=self.schedule_sorted.timeInfo[-1] + self.slot_duration,
+                        start_node_id=self.schedule_sorted[-1].nodeID,
+                        end_node_id=self.schedule_sorted[-1].nodeID,
+                        start_after=self.schedule_sorted[-1].timeInfo,
+                        end_before=self.schedule_sorted[-1].timeInfo + self.slot_duration,
                         max_duration=self.slot_duration,
                         arguments = taskArg)
                                         
