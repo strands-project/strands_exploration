@@ -1,6 +1,6 @@
 <launch>
-    	<arg name="schedule_directory" default="/home/strands/spatiotemporal_exploration/schedules"/>
-	<arg name="grids_directory" default="/home/strands/spatiotemporal_exploration/3dmaps"/>
+    	<arg name="schedule_directory" default="/home/santos/spatiotemporal_exploration/schedules"/>
+	<arg name="grids_directory" default="/home/santos/spatiotemporal_exploration/3dmaps"/>
 	<arg name="sweep_type" default="complete"/>
 	<arg name="exploration_tag" default="Exploration"/>
 	<arg name="bidder_timer" default="3600"/>
