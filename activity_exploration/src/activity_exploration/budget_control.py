@@ -1,119 +1,162 @@
 #!/usr/bin/env python
 
+import copy
 import time
 import rospy
 import datetime
-import threading
-from people_temporal_patterns.srv import PeopleEstimateSrv
+import numpy as np
 from exploration_bid_manager.exploration_bidder import ExplorationBidder
+from scene_temporal_patterns.srv import SceneBestTimeEstimateSrv
+from scene_temporal_patterns.srv import SceneBestTimeEstimateSrvResponse
+from people_temporal_patterns.srv import PeopleBestTimeEstimateSrv
+from people_temporal_patterns.srv import PeopleBestTimeEstimateSrvResponse
+from activity_temporal_patterns.srv import ActivityBestTimeEstimateSrv
+from activity_temporal_patterns.srv import ActivityBestTimeEstimateSrvResponse
 
 
 class BudgetControl(object):
 
     def __init__(
-        self, start_time=(8, 0), end_time=(18, 0), time_alloc_multi=[1, 2, 2, 1]
+        self, start_time=(8, 0), end_time=(18, 0), max_visit=20,
+        update_interval=rospy.Duration(86400)
     ):
         rospy.loginfo("Initiating budgetting control...")
         # hand-allocated budget (between 8am to 6pm)
-        self._time_alloc_multi = time_alloc_multi
+        self._max_visit = max_visit
+        self._update_interval = update_interval
         self._start_time = datetime.time(start_time[0], start_time[1])
         self._end_time = datetime.time(end_time[0], end_time[1])
         self.budget_alloc = None
         self.total_budget = None
-        temp = datetime.datetime.fromtimestamp(rospy.Time.now().secs)
+        tmp = datetime.datetime.fromtimestamp(rospy.Time.now().secs)
         self._update_budget_date = datetime.datetime(
-            temp.year, temp.month, temp.day, 0, 0
+            tmp.year, tmp.month, tmp.day, 0, 0
         )
         self.bidder = ExplorationBidder()
-        # rospy.loginfo("Connect to /exploration_services/budget_info service...")
-        # self._exp_info_srv = rospy.ServiceProxy(
-        #     "/exploration_services/budget_info", GetBudgetInfo
-        # )
-        # self._exp_info_srv.wait_for_service()
+        # all services to counters
         people_srv_name = rospy.get_param(
-            "~people_srv", "/people_counter/people_estimate"
+            "~people_srv", "/people_counter/people_best_time_estimate"
         )
-        rospy.loginfo("Connecting to %s service..." % people_srv_name)
-        self._people_srv = rospy.ServiceProxy(people_srv_name, PeopleEstimateSrv)
-        self._people_srv.wait_for_service()
-        rospy.sleep(0.1)
-        self._time_alloc = self._get_time_alloc(self._start_time, self._end_time)
-        self._thread = threading.Thread(target=self._get_budget_alloc)
-        self._thread.start()
-
-    def _get_time_alloc(self, start_time, end_time):
-        budget_cats = len(self._time_alloc_multi)
-        start = rospy.Time.now()
-        start = datetime.datetime.fromtimestamp(start.secs)
-        start = datetime.datetime(
-            start.year, start.month, start.day,
-            start_time.hour, start_time.minute
-        )
-        end = datetime.datetime(
-            start.year, start.month, start.day,
-            end_time.hour, end_time.minute
-        )
-        dur = int((end-start).total_seconds())
-        time_alloc = list()
-        for i in range(budget_cats):
-            added_hour = ((i * dur) / budget_cats) / 3600
-            added_min = (((i * dur) / budget_cats) % 3600) / 60
-            start = datetime.time(start_time.hour + added_hour, start_time.minute + added_min)
-            added_hour = (((i+1) * dur) / budget_cats) / 3600
-            added_min = ((((i+1) * dur) / budget_cats) % 3600) / 60
-            if added_min == 0:
-                added_hour = (added_hour - 1) % 24
-            added_min = (added_min - 1) % 60
-            end = datetime.time(start_time.hour + added_hour, start_time.minute + added_min, 59)
-            time_alloc.append((start, end, self._time_alloc_multi[i]))
-        return time_alloc
-
-    def _get_budget_alloc(self):
-        # assuming arg for BudgetInfo is string of the name of exploration
-        # returning budge left
-        while not rospy.is_shutdown():
-            temp = datetime.datetime.fromtimestamp(rospy.Time.now().secs)
-            current_time = datetime.datetime(
-                temp.year, temp.month, temp.day, 0, 0
+        if people_srv_name != "":
+            rospy.loginfo("Connecting to %s service..." % people_srv_name)
+            self._people_srv = rospy.ServiceProxy(
+                people_srv_name, PeopleBestTimeEstimateSrv
             )
-            if self.budget_alloc is None or (
-                self._update_budget_date-current_time
-            ) >= datetime.timedelta(days=1):
-                # budget = self._exp_info_srv("activity_exploration")
-                total_budget = self.bidder.available_tokens - self.bidder.currently_bid_tokens
-                total_mult = float(sum([i[2] for i in self._time_alloc]))
-                budget_alloc = list()
-                for i in self._time_alloc:
-                    budget_alloc.append((i[0], i[1], int(i[2] / total_mult * total_budget)))
-                self.budget_alloc = budget_alloc
-                self.total_budget = total_budget
-                self._update_budget_date = current_time
-            rospy.sleep(300)
-
-    def get_allocated_budget(self, start_time, end_time):
-        start = datetime.datetime.fromtimestamp(start_time.secs)
-        start = datetime.time(start.hour, start.minute)
-        total_budget = self.bidder.available_tokens - self.bidder.currently_bid_tokens
-        non_allocated = 0
-        end_budget_time = None
-        for i in self.budget_alloc:
-            if start < i[0]:
-                non_allocated += i[2]
-            elif start <= i[1]:
-                end_budget_time = i[1]
-        assert end_budget_time is not None, "end_budget_time is not assigned somehow"
-        tmp = datetime.datetime.fromtimestamp(start_time.secs)
-        end_budget_time = datetime.datetime(
-            tmp.year, tmp.month, tmp.day, end_budget_time.hour,
-            end_budget_time.minute, end_budget_time.second
+            self._people_srv.wait_for_service()
+        act_srv_name = rospy.get_param(
+            "~activity_srv", "/activity_counter/activity_best_time_estimate"
         )
-        end_budget_time = rospy.Time(time.mktime(end_budget_time.timetuple()))
-        allocated_budget = total_budget - non_allocated
-        # make allocated budget proportional to the importance of exploration
-        people_estimates = self._people_srv(start_time, end_budget_time, True, False)
-        total_estimate = sum(sorted(people_estimates.estimates, reverse=True)[:3])
-        people_estimates = self._people_srv(start_time, end_time, True, False)
-        portion_estimate = sum(sorted(people_estimates.estimates, reverse=True)[:3])
-        if total_estimate > 0:
-            allocated_budget = min([int(portion_estimate/total_estimate*2), allocated_budget])
-        return allocated_budget
+        if act_srv_name != "":
+            rospy.loginfo("Connecting to %s service..." % act_srv_name)
+            self._act_srv = rospy.ServiceProxy(
+                act_srv_name, ActivityBestTimeEstimateSrv
+            )
+            self._act_srv.wait_for_service()
+        scene_srv_name = rospy.get_param(
+            "~scene_srv", "/scene_counter/scene_best_time_estimate"
+        )
+        if scene_srv_name != "":
+            rospy.loginfo("Connecting to %s service..." % scene_srv_name)
+            self._scene_srv = rospy.ServiceProxy(
+                scene_srv_name, SceneBestTimeEstimateSrv
+            )
+            self._scene_srv.wait_for_service()
+        # calling budget allocation periodically
+        self._get_budget_alloc(None)
+        rospy.Timer(update_interval, self._get_budget_alloc)
+
+    def get_people_estimate(self, start, end):
+        result = None
+        try:
+            result = self._people_srv(start, end, self._max_visit, True)
+        except NameError:
+            result = PeopleBestTimeEstimateSrvResponse(list(), list(), list())
+        result.estimates = [i/np.linalg.norm(i) for i in result.estimates]
+        return result
+
+    def get_scene_estimate(self, start, end):
+        result = None
+        try:
+            result = self._scene_srv(start, end, self._max_visit, True)
+        except NameError:
+            result = SceneBestTimeEstimateSrvResponse(list(), list(), list())
+        result.estimates = [i/np.linalg.norm(i) for i in result.estimates]
+        return result
+
+    def get_activity_estimate(self, start, end):
+        result = None
+        try:
+            result = self._act_srv(start, end, self._max_visit, True)
+        except NameError:
+            result = ActivityBestTimeEstimateSrvResponse(list(), list(), list())
+        result.estimates = [i/np.linalg.norm(i) for i in result.estimates]
+        return result
+
+    def get_norm_estimate(self, start, end):
+        result = list()  # (times, regions, estimates)
+        # normalized estimate
+        scene = self.get_scene_estimate(start, end)
+        people = self.get_people_estimate(start, end)
+        activity = self.get_activity_estimate(start, end)
+        times = copy.deepcopy(scene.times + people.times + activity.times)
+        for xtime in set(times):
+            act_roi = ""
+            act_est = .0
+            if xtime in activity.times:
+                act_est = activity.estimates[activity.times.index(xtime)]
+                act_roi = activity.region_ids[activity.times.index(xtime)]
+            people_roi = ""
+            people_est = .0
+            if xtime in people.times:
+                people_est = people.estimates[people.times.index(xtime)]
+                people_roi = people.region_ids[people.times.index(xtime)]
+            scene_roi = ""
+            scene_est = .0
+            if xtime in scene.times:
+                scene_est = scene.estimates[scene.times.index(xtime)]
+                scene_roi = scene.region_ids[scene.times.index(xtime)]
+            if scene_roi == act_roi == people_roi != "":
+                result.append((xtime, act_roi, scene_est+people_est+act_est))
+            elif scene_roi == act_roi != "":
+                result.append((xtime, act_roi, scene_est+act_est))
+                result.append((xtime, people_roi, people_est))
+            elif scene_roi == people_roi != "":
+                result.append((xtime, scene_roi, scene_est+people_est))
+                result.append((xtime, act_roi, act_est))
+            elif people_roi == act_roi != "":
+                result.append((xtime, act_roi, act_est+people_est))
+                result.append((xtime, scene_roi, scene_est))
+            else:
+                result.append((xtime, act_roi, act_est))
+                result.append((xtime, scene_roi, scene_est))
+                result.append((xtime, people_roi, people_est))
+        result = sorted(result, key=lambda i: i[2], reverse=True)
+        result = result[:self._max_visit]
+        # normalize estimate
+        norm = np.linalg.norm(zip(*result)[2])
+        result = [
+            (i[0], i[1], i[2]/norm) for i in result
+        ]
+        return result
+
+    def _get_budget_alloc(self, event):
+        tmp = datetime.datetime.fromtimestamp(rospy.Time.now().secs)
+        current_time = datetime.datetime(tmp.year, tmp.month, tmp.day, 0, 0)
+        if self.budget_alloc is None or (
+            self._update_budget_date-current_time
+        ) >= datetime.timedelta(days=1):
+            total_budget = self.bidder.available_tokens - self.bidder.currently_bid_tokens
+            start = datetime.datetime(
+                current_date.year, current_date.month, current_date.day,
+                self._start_time.hour, self._start_time.minute
+            )
+            end = datetime.datetime(
+                current_date.year, current_date.month, current_date.day,
+                self._end_time.hour, self._end_time.minute
+            )
+            estimate = self.get_norm_estimate(start, end)
+            self.budget_alloc = [
+                (i[0], i[1], i[2]*total_budget) for i in estimate
+            ]
+            self.total_budget = total_budget
+            self._update_budget_date = current_time

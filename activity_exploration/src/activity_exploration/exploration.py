@@ -11,9 +11,6 @@ from activity_exploration.srv import ChangeMethodSrv
 from activity_exploration.srv import ChangeMethodSrvResponse
 from activity_exploration.budget_control import BudgetControl
 
-from people_temporal_patterns.srv import PeopleEstimateSrv
-from activity_temporal_patterns.srv import ActivityEstimateSrv
-
 from strands_executive_msgs.msg import Task
 from strands_executive_msgs import task_utils
 from strands_navigation_msgs.msg import TopologicalMap
@@ -26,39 +23,49 @@ class ActivityRecommender(object):
 
     def __init__(self):
         rospy.loginfo("Initiating activity exploration...")
+        tmp = datetime.datetime.fromtimestamp(rospy.Time.now().secs)
+        self._last_req_date = datetime.datetime(tmp.year, tmp.month, tmp.day, 0, 0)
         self.soma_config = rospy.get_param("~soma_config", "activity_exploration")
         self.exploration_method = rospy.get_param("~exploration_method", "ubc")
-        self.budget_control = BudgetControl()
-        self._exp_req_dur = rospy.Duration(rospy.get_param("~exp_req_duration", 3600))
-        rospy.loginfo(
-            "Connecting to %s service..." % rospy.get_param(
-                "~people_srv", "/people_counter/people_estimate"
-            )
+        self._exp_req_dur = rospy.Duration(
+            rospy.get_param("~exploration_update_interval", 86400)
         )
-        self.people_srv = rospy.ServiceProxy(
-            rospy.get_param("~people_srv", "/people_counter/people_estimate"),
-            PeopleEstimateSrv
+        self.exploration_duration = rospy.Duration(
+            rospy.get_param("~exploration_duration", "600")
         )
-        self.people_srv.wait_for_service()
-        srv_name = rospy.get_param("~people_srv", "/people_counter/people_estimate")
-        srv_name = srv_name.split("/")[1]
-        self.people_restart_srv = rospy.ServiceProxy("/"+srv_name+"/restart", Empty)
-        self.people_restart_srv.wait_for_service()
-        rospy.sleep(0.1)
-        act_srv_name = rospy.get_param("~activity_srv", "")
-        self.act_srv = None
+        self.budget_control = BudgetControl(update_interval=self._exp_req_dur)
+        # all services to counters
+        people_srv_name = rospy.get_param(
+            "~people_srv", "/people_counter/people_best_time_estimate"
+        )
+        if people_srv_name != "":
+            people_srv_name = "/" + people_srv_name.split("/")[1] + "/restart"
+            rospy.loginfo("Connecting to %s service..." % people_srv_name)
+            self._people_srv = rospy.ServiceProxy(people_srv_name, Empty)
+            self._people_srv.wait_for_service()
+        act_srv_name = rospy.get_param(
+            "~activity_srv", "/activity_counter/activity_best_time_estimate"
+        )
         if act_srv_name != "":
+            act_srv_name = "/" + act_srv_name.split("/")[1] + "/restart"
             rospy.loginfo("Connecting to %s service..." % act_srv_name)
-            self.act_srv = rospy.ServiceProxy(act_srv_name, ActivityEstimateSrv)
-            self.act_srv.wait_for_service()
-            rospy.sleep(0.1)
+            self._act_srv = rospy.ServiceProxy(act_srv_name, Empty)
+            self._act_srv.wait_for_service()
+        scene_srv_name = rospy.get_param(
+            "~scene_srv", "/scene_counter/scene_best_time_estimate"
+        )
+        if scene_srv_name != "":
+            scene_srv_name = "/" + scene_srv_name.split("/")[1] + "/restart"
+            rospy.loginfo("Connecting to %s service..." % scene_srv_name)
+            self._scene_srv = rospy.ServiceProxy(scene_srv_name, Empty)
+            self._scene_srv.wait_for_service()
+        # regions
         self.epsilon = 0.15
         self.topo_map = None
         if rospy.get_param("~with_config_file", False):
             self.region_wps = self._get_waypoints_from_file()
         else:
             self.region_wps = self._get_waypoints(self.soma_config)
-
         rospy.loginfo(
             "Region ids and their nearest waypoints: %s" % str(self.region_wps)
         )
@@ -67,99 +74,61 @@ class ActivityRecommender(object):
             '%s/change_method_srv' % rospy.get_name(),
             ChangeMethodSrv, self._change_srv_cb
         )
-        rospy.sleep(0.1)
         rospy.Timer(self._exp_req_dur, self.request_exploration)
 
     def _change_srv_cb(self, msg):
         rospy.loginfo("An exploration method change is requested")
         rospy.loginfo("Changing to %s method..." % msg.exploration_method)
         self.exploration_method = msg.exploration_method
-        rospy.loginfo("Restarting counting process...")
-        self.people_restart_srv()
+        rospy.loginfo("Restarting all counting processes...")
+        self._act_srv()
+        self._scene_srv()
+        self._people_srv()
         return ChangeMethodSrvResponse()
 
-    # def spin(self):
-    #     start = rospy.Time.now()
-    #     while not rospy.is_shutdown():
-    #         current = rospy.Time.now()
-    #         # asking for exploration every self._exp_req_dur
-    #         if (current - start) > self._exp_req_dur:
-    #             self.request_exploration(current)
-    #             start = current
-    #         rospy.sleep(60)
-
     def request_exploration(self, event):
-        start_time = rospy.Time.now()
-        end_time = start_time + self._exp_req_dur
-        rospy.loginfo(
-            "Requesting a visit between %d and %d"
-            % (start_time.secs, end_time.secs)
-        )
-        budget = self.budget_control.get_allocated_budget(start_time, end_time)
-        is_ubc = self.exploration_method == "ubc"
-        people_estimates = self.people_srv(start_time, end_time, is_ubc, False)
-        visit_plan = [
-            (estimate, people_estimates.region_ids[ind]) for ind, estimate in enumerate(
-                people_estimates.estimates)
-        ]
-        visit_plan = sorted(visit_plan, key=lambda i: i[0], reverse=True)
-        if self.exploration_method != "ubc":
-            visit_plan = self._check_visit_plan(
-                start_time, end_time, visit_plan
+        if self._last_req_date == self.budget_control._update_budget_date:
+            return
+        for (start, roi, budget) in self.budget_control.budget_alloc:
+            wp = self.region_wps[roi]
+            start_time = start - self.exploration_duration
+            end_time = start_time + 2 * self.exploration_duration
+            duration = self.exploration_duration
+            task = Task(
+                action="record_skeletons", start_node_id=wp, end_node_id=wp,
+                start_after=start_time, end_before=end_time, max_duration=duration
             )
-        suggested_wps = list()
-        suggested_score = list()
-        for i in visit_plan:
-            if i[1] in self.region_wps:
-                if self.region_wps[i[1]] in suggested_wps:
-                    suggested_score[
-                        suggested_wps.index(self.region_wps[i[1]])
-                    ] += i[0]
-                else:
-                    suggested_wps.append(self.region_wps[i[1]])
-                    suggested_score.append(i[0])
-            else:
-                rospy.loginfo(
-                    "No waypoint covers region %s, removing region..." % i[1]
-                )
-        idx = random.randint(2)
-        wp = suggested_wps[idx]
-        duration = rospy.Duration((end_time - start_time).secs/3)
-        task = Task(
-            action="record_skeletons", start_node_id=wp, end_node_id=wp,
-            start_after=start_time, end_before=end_time, max_duration=duration
-        )
-        task_utils.add_duration_argument(task, duration)
-        task_utils.add_string_argument(task, visit_plan[idx][1])
-        task_utils.add_string_argument(task, self.soma_config)
-        rospy.loginfo("Task to be requested: %s" % str(task))
-        self.budget_control.bidder.add_task_bid(task, budget)
-        return task
+            task_utils.add_duration_argument(task, duration)
+            task_utils.add_string_argument(task, roi)
+            task_utils.add_string_argument(task, self.soma_config)
+            rospy.loginfo("Task to be requested: %s" % str(task))
+            self.budget_control.bidder.add_task_bid(task, budget)
+        self._last_req_date = self.budget_control._update_budget_date
 
-    def _check_visit_plan(self, start_time, end_time, visit_plan):
-        scales = self.people_srv(start_time, end_time, False, True)
-        scale_plan = list()
-        for ind, scale in enumerate(scales.estimates):
-            scale_plan.append((scale, scales.region_ids[ind]))
-        if len(scale_plan) != 0:
-            scale_plan = sorted(scale_plan, key=lambda i: i[0], reverse=True)
-            lower_threshold = scale_plan[0][0] - (self.epsilon * scale_plan[0][0])
-            high_visit = list()
-            for total_scale, roi in scale_plan:
-                if total_scale <= scale_plan[0][0] and total_scale >= lower_threshold:
-                    high_visit.append(roi)
-            p = len(high_visit) / float(len(scales.estimates))
-            scale_plan = sorted(scale_plan, key=lambda i: i[0])
-            if random.random() > p:
-                rospy.loginfo("Changing WayPoints to visit unobserved places...")
-                new_visit_plan = list()
-                for i in scale_plan:
-                    for j in visit_plan:
-                        if i[1] == j[1]:
-                            new_visit_plan.append(j)
-                            break
-                visit_plan = new_visit_plan
-        return visit_plan
+    # def _check_visit_plan(self, start_time, end_time, visit_plan):
+    #     scales = self.people_srv(start_time, end_time, False, True)
+    #     scale_plan = list()
+    #     for ind, scale in enumerate(scales.estimates):
+    #         scale_plan.append((scale, scales.region_ids[ind]))
+    #     if len(scale_plan) != 0:
+    #         scale_plan = sorted(scale_plan, key=lambda i: i[0], reverse=True)
+    #         lower_threshold = scale_plan[0][0] - (self.epsilon * scale_plan[0][0])
+    #         high_visit = list()
+    #         for total_scale, roi in scale_plan:
+    #             if total_scale <= scale_plan[0][0] and total_scale >= lower_threshold:
+    #                 high_visit.append(roi)
+    #         p = len(high_visit) / float(len(scales.estimates))
+    #         scale_plan = sorted(scale_plan, key=lambda i: i[0])
+    #         if random.random() > p:
+    #             rospy.loginfo("Changing WayPoints to visit unobserved places...")
+    #             new_visit_plan = list()
+    #             for i in scale_plan:
+    #                 for j in visit_plan:
+    #                     if i[1] == j[1]:
+    #                         new_visit_plan.append(j)
+    #                         break
+    #             visit_plan = new_visit_plan
+    #     return visit_plan
 
     def _topo_map_cb(self, topo_map):
         self.topo_map = topo_map
@@ -210,5 +179,4 @@ class ActivityRecommender(object):
 if __name__ == '__main__':
     rospy.init_node("activity_exploration")
     ar = ActivityRecommender()
-    # ar.spin()
     rospy.spin()
