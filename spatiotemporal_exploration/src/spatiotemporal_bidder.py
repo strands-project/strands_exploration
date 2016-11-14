@@ -61,8 +61,9 @@ class SpatioTemporalBidder(object):
             print "lookAhead: ", lookAhead
             
             maxSlot = nextSlot + lookAhead
+            print "maxSlot: ", maxSlot
             if maxSlot - nextSlot > 1:        
-                
+                print "sorting scheduling..."
                 self.schedule_sorted = []
                 #reorder slots based on the entropy for each 2h interval
                 for i in range(nextSlot, maxSlot):
@@ -74,6 +75,7 @@ class SpatioTemporalBidder(object):
                     
                 self.schedule_sorted = sorted(self.schedule_sorted, key=lambda k:k['entropy'])
                 
+                print "adding schedule..."
                 start_time = rospy.Time(secs = self.schedule_sorted[-1]['timeInfo'], nsecs = 0)
                 end_time = rospy.Time(secs = self.schedule_sorted[-1]['timeInfo'] + self.slot_duration, nsecs = 0)
                 task_duration = rospy.Duration(secs = self.bidder_timer)                
@@ -93,6 +95,9 @@ class SpatioTemporalBidder(object):
                 if bid > 0:
                     print "Bid Amount: ", bid, "Node: ", self.schedule_sorted[-1]['nodeID'], "Time: ", self.schedule_sorted[-1]['timeInfo'] 
                     self.bidder.add_task_bid(task, bid)
+                else:
+                    print "bid value to low to add task!"
+                    print "current budget: ", self.bidder.available_tokens
         
      
     def main(self):
