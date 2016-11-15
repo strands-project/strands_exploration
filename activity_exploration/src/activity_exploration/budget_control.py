@@ -71,7 +71,9 @@ class BudgetControl(object):
             result = self._people_srv(start, end, self._max_visit, True)
         except NameError:
             result = PeopleBestTimeEstimateSrvResponse(list(), list(), list())
-        result.estimates = [i/np.linalg.norm(i) for i in result.estimates]
+        norm = np.linalg.norm(result.estimates)
+        if norm > 0.0:
+            result.estimates = [i/norm for i in result.estimates]
         return result
 
     def get_scene_estimate(self, start, end):
@@ -80,7 +82,9 @@ class BudgetControl(object):
             result = self._scene_srv(start, end, self._max_visit, True)
         except NameError:
             result = SceneBestTimeEstimateSrvResponse(list(), list(), list())
-        result.estimates = [i/np.linalg.norm(i) for i in result.estimates]
+        norm = np.linalg.norm(result.estimates)
+        if norm > 0.0:
+            result.estimates = [i/norm for i in result.estimates]
         return result
 
     def get_activity_estimate(self, start, end):
@@ -89,7 +93,9 @@ class BudgetControl(object):
             result = self._act_srv(start, end, self._max_visit, True)
         except NameError:
             result = ActivityBestTimeEstimateSrvResponse(list(), list(), list())
-        result.estimates = [i/np.linalg.norm(i) for i in result.estimates]
+        norm = np.linalg.norm(result.estimates)
+        if norm > 0.0:
+            result.estimates = [i/norm for i in result.estimates]
         return result
 
     def get_norm_estimate(self, start, end):
@@ -134,9 +140,11 @@ class BudgetControl(object):
         result = result[:self._max_visit]
         # normalize estimate
         norm = np.linalg.norm(zip(*result)[2])
-        result = [
-            (i[0], i[1], i[2]/norm) for i in result
-        ]
+        if norm > 0.0:
+            result = [(i[0], i[1], i[2]/norm) for i in result]
+        else:
+            length = len(result)
+            result = [(i[0], i[1], 1/length) for i in result]
         return result
 
     def _get_budget_alloc(self, event):
