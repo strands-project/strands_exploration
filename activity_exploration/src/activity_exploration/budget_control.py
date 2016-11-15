@@ -146,17 +146,21 @@ class BudgetControl(object):
             self._update_budget_date-current_time
         ) >= datetime.timedelta(days=1):
             total_budget = self.bidder.available_tokens - self.bidder.currently_bid_tokens
+            rospy.loginfo("Current budget: %d" % total_budget)
             start = datetime.datetime(
-                current_date.year, current_date.month, current_date.day,
+                current_time.year, current_time.month, current_time.day,
                 self._start_time.hour, self._start_time.minute
             )
             end = datetime.datetime(
-                current_date.year, current_date.month, current_date.day,
+                current_time.year, current_time.month, current_time.day,
                 self._end_time.hour, self._end_time.minute
             )
+            start = rospy.Time(time.mktime(start.timetuple()))
+            end = rospy.Time(time.mktime(end.timetuple()))
             estimate = self.get_norm_estimate(start, end)
             self.budget_alloc = [
                 (i[0], i[1], i[2]*total_budget) for i in estimate
             ]
+            rospy.loginfo("Budget allocation: %s" % str(self.budget_alloc))
             self.total_budget = total_budget
             self._update_budget_date = current_time

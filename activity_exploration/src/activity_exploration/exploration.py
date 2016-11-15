@@ -4,7 +4,7 @@
 import yaml
 import rospy
 import roslib
-import random
+import datetime
 from std_srvs.srv import Empty
 
 from activity_exploration.srv import ChangeMethodSrv
@@ -24,7 +24,8 @@ class ActivityRecommender(object):
     def __init__(self):
         rospy.loginfo("Initiating activity exploration...")
         tmp = datetime.datetime.fromtimestamp(rospy.Time.now().secs)
-        self._last_req_date = datetime.datetime(tmp.year, tmp.month, tmp.day, 0, 0)
+        # self._last_req_date = datetime.datetime(tmp.year, tmp.month, tmp.day, 0, 0)
+        self._last_req_date = None
         self.soma_config = rospy.get_param("~soma_config", "activity_exploration")
         self.exploration_method = rospy.get_param("~exploration_method", "ubc")
         self._exp_req_dur = rospy.Duration(
@@ -74,6 +75,7 @@ class ActivityRecommender(object):
             '%s/change_method_srv' % rospy.get_name(),
             ChangeMethodSrv, self._change_srv_cb
         )
+        self.request_exploration(None)
         rospy.Timer(self._exp_req_dur, self.request_exploration)
 
     def _change_srv_cb(self, msg):
@@ -92,7 +94,7 @@ class ActivityRecommender(object):
         for (start, roi, budget) in self.budget_control.budget_alloc:
             wp = self.region_wps[roi]
             start_time = start - self.exploration_duration
-            end_time = start_time + 2 * self.exploration_duration
+            end_time = start_time + self.exploration_duration + self.exploration_duration
             duration = self.exploration_duration
             task = Task(
                 action="record_skeletons", start_node_id=wp, end_node_id=wp,
@@ -101,8 +103,12 @@ class ActivityRecommender(object):
             task_utils.add_duration_argument(task, duration)
             task_utils.add_string_argument(task, roi)
             task_utils.add_string_argument(task, self.soma_config)
-            rospy.loginfo("Task to be requested: %s" % str(task))
-            self.budget_control.bidder.add_task_bid(task, budget)
+            rospy.loginfo(
+                "Task to be requested: {wp:%s, roi:%s, start:%d, duration:%d, budget:%d" % (
+                    wp, roi, start_time.secs, duration.secs, int(budget)
+                )
+            )
+            self.budget_control.bidder.add_task_bid(task, int(budget))
         self._last_req_date = self.budget_control._update_budget_date
 
     # def _check_visit_plan(self, start_time, end_time, visit_plan):
