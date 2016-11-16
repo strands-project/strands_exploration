@@ -17,17 +17,15 @@ from activity_temporal_patterns.srv import ActivityBestTimeEstimateSrvResponse
 class BudgetControl(object):
 
     def __init__(
-        self, start_time=(8, 0), end_time=(18, 0), max_visit=20,
-        update_interval=rospy.Duration(86400)
+        self, start_time=(8, 0), end_time=(18, 0), max_visit=20
     ):
         rospy.loginfo("Initiating budgetting control...")
         # hand-allocated budget (between 8am to 6pm)
         self._max_visit = max_visit
-        self._update_interval = update_interval
         self._start_time = datetime.time(start_time[0], start_time[1])
         self._end_time = datetime.time(end_time[0], end_time[1])
-        self.budget_alloc = None
-        self.total_budget = None
+        self.budget_alloc = list()
+        self.available_budget = 0
         tmp = datetime.datetime.fromtimestamp(rospy.Time.now().secs)
         self._update_budget_date = datetime.datetime(
             tmp.year, tmp.month, tmp.day, 0, 0
@@ -61,9 +59,6 @@ class BudgetControl(object):
                 scene_srv_name, SceneBestTimeEstimateSrv
             )
             self._scene_srv.wait_for_service()
-        # calling budget allocation periodically
-        self._get_budget_alloc(None)
-        rospy.Timer(update_interval, self._get_budget_alloc)
 
     def get_people_estimate(self, start, end):
         result = None
@@ -98,7 +93,7 @@ class BudgetControl(object):
             result.estimates = [i/norm for i in result.estimates]
         return result
 
-    def get_norm_estimate(self, start, end):
+    def get_norm_estimate(self, start, end, size):
         result = list()  # (times, regions, estimates)
         # normalized estimate
         scene = self.get_scene_estimate(start, end)
@@ -137,9 +132,9 @@ class BudgetControl(object):
                 result.append((xtime, scene_roi, scene_est))
                 result.append((xtime, people_roi, people_est))
         result = sorted(result, key=lambda i: i[2], reverse=True)
-        result = result[:self._max_visit]
+        result = result[:size]
         # normalize estimate
-        norm = np.linalg.norm(zip(*result)[2])
+        norm = sum(zip(*result)[2])
         if norm > 0.0:
             result = [(i[0], i[1], i[2]/norm) for i in result]
         else:
@@ -147,14 +142,16 @@ class BudgetControl(object):
             result = [(i[0], i[1], 1/length) for i in result]
         return result
 
-    def _get_budget_alloc(self, event):
+    def get_budget_alloc(self):
         tmp = datetime.datetime.fromtimestamp(rospy.Time.now().secs)
         current_time = datetime.datetime(tmp.year, tmp.month, tmp.day, 0, 0)
-        if self.budget_alloc is None or (
-            self._update_budget_date-current_time
-        ) >= datetime.timedelta(days=1):
-            total_budget = self.bidder.available_tokens - self.bidder.currently_bid_tokens
-            rospy.loginfo("Current budget: %d" % total_budget)
+        total_budget = self.bidder.available_tokens - self.bidder.currently_bid_tokens
+        if self._update_budget_date-current_time >= datetime.timedelta(days=1):
+            rospy.loginfo(
+                "Planning budget allocation for %s..." % str(
+                    current_time.date()
+                )
+            )
             start = datetime.datetime(
                 current_time.year, current_time.month, current_time.day,
                 self._start_time.hour, self._start_time.minute
@@ -165,10 +162,41 @@ class BudgetControl(object):
             )
             start = rospy.Time(time.mktime(start.timetuple()))
             end = rospy.Time(time.mktime(end.timetuple()))
-            estimate = self.get_norm_estimate(start, end)
-            self.budget_alloc = [
-                (i[0], i[1], i[2]*total_budget) for i in estimate
-            ]
-            rospy.loginfo("Budget allocation: %s" % str(self.budget_alloc))
-            self.total_budget = total_budget
+            self._get_budget_alloc(start, end, total_budget, self._max_visit)
             self._update_budget_date = current_time
+        elif total_budget:
+            tmp = datetime.datetime.fromtimestamp(rospy.Time.now().secs)
+            current_time = datetime.datetime(
+                tmp.year, tmp.month, tmp.day, tmp.hour, tmp.minute
+            )
+            rospy.loginfo(
+                "Planning budget allocation for today from %s..." % str(
+                    current_time
+                )
+            )
+            start = datetime.datetime(
+                current_time.year, current_time.month, current_time.day,
+                current_time.hour, current_time.minute
+            )
+            end = datetime.datetime(
+                current_time.year, current_time.month, current_time.day,
+                self._end_time.hour, self._end_time.minute
+            )
+            start = rospy.Time(time.mktime(start.timetuple()))
+            end = rospy.Time(time.mktime(end.timetuple()))
+            self._get_budget_alloc(
+                start, end, total_budget, self._max_visit/5
+            )
+        else:
+            rospy.loginfo("No budget available, skipping process..")
+
+    def _get_budget_alloc(self, start, end, total_budget, size):
+        rospy.loginfo("Available budget: %d" % total_budget)
+        estimate = self.get_norm_estimate(start, end, size)
+        self.budget_alloc = [
+            (
+                i[0], i[1], i[2]*total_budget
+            ) for i in estimate if int(i[2]*total_budget) > 0
+        ]
+        self.available_budget = total_budget
+        rospy.loginfo("Budget allocation: %s" % str(self.budget_alloc))

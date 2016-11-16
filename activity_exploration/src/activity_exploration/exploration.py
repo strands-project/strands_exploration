@@ -4,7 +4,6 @@
 import yaml
 import rospy
 import roslib
-import datetime
 from std_srvs.srv import Empty
 
 from activity_exploration.srv import ChangeMethodSrv
@@ -23,18 +22,17 @@ class ActivityRecommender(object):
 
     def __init__(self):
         rospy.loginfo("Initiating activity exploration...")
-        tmp = datetime.datetime.fromtimestamp(rospy.Time.now().secs)
-        # self._last_req_date = datetime.datetime(tmp.year, tmp.month, tmp.day, 0, 0)
-        self._last_req_date = None
-        self.soma_config = rospy.get_param("~soma_config", "activity_exploration")
+        self.soma_config = rospy.get_param(
+            "~soma_config", "activity_exploration"
+        )
         self.exploration_method = rospy.get_param("~exploration_method", "ubc")
         self._exp_req_dur = rospy.Duration(
-            rospy.get_param("~exploration_update_interval", 86400)
+            rospy.get_param("~exploration_update_interval", 600)
         )
         self.exploration_duration = rospy.Duration(
             rospy.get_param("~exploration_duration", "600")
         )
-        self.budget_control = BudgetControl(update_interval=self._exp_req_dur)
+        self.budget_control = BudgetControl()
         # all services to counters
         people_srv_name = rospy.get_param(
             "~people_srv", "/people_counter/people_best_time_estimate"
@@ -75,7 +73,7 @@ class ActivityRecommender(object):
             '%s/change_method_srv' % rospy.get_name(),
             ChangeMethodSrv, self._change_srv_cb
         )
-        self.request_exploration(None)
+        # self.request_exploration(None)
         rospy.Timer(self._exp_req_dur, self.request_exploration)
 
     def _change_srv_cb(self, msg):
@@ -89,8 +87,7 @@ class ActivityRecommender(object):
         return ChangeMethodSrvResponse()
 
     def request_exploration(self, event):
-        if self._last_req_date == self.budget_control._update_budget_date:
-            return
+        self.budget_control.get_budget_alloc()
         for (start, roi, budget) in self.budget_control.budget_alloc:
             wp = self.region_wps[roi]
             start_time = start - self.exploration_duration
@@ -109,7 +106,7 @@ class ActivityRecommender(object):
                 )
             )
             self.budget_control.bidder.add_task_bid(task, int(budget))
-        self._last_req_date = self.budget_control._update_budget_date
+        rospy.loginfo("Finish adding tasks...")
 
     # def _check_visit_plan(self, start_time, end_time, visit_plan):
     #     scales = self.people_srv(start_time, end_time, False, True)
