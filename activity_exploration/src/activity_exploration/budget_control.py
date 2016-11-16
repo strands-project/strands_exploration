@@ -152,22 +152,23 @@ class BudgetControl(object):
                 result.append((xtime, people_roi, people_est, "people"))
         result = sorted(result, key=lambda i: i[2], reverse=True)
         result = result[:size]
-        # store options to db
-        msg = ExplorationChoice()
-        msg.soma_config = self.soma_config
-        for i in result:
-            msg.start_times.append(i[0])
-            msg.region_ids.append(i[1])
-            msg.estimates.append(i[2])
-            msg.contributing_models.append(i[3])
-        self._db.insert(msg)
-        # normalize estimate
-        norm = sum(zip(*result)[2])
-        if norm > 0.0:
-            result = [(i[0], i[1], i[2]/norm) for i in result]
-        else:
-            length = len(result)
-            result = [(i[0], i[1], 1/length) for i in result]
+        if len(result):
+            # store options to db
+            msg = ExplorationChoice()
+            msg.soma_config = self.soma_config
+            for i in result:
+                msg.start_times.append(i[0])
+                msg.region_ids.append(i[1])
+                msg.estimates.append(i[2])
+                msg.contributing_models.append(i[3])
+            self._db.insert(msg)
+            # normalize estimate
+            norm = sum(zip(*result)[2])
+            if norm > 0.0:
+                result = [(i[0], i[1], i[2]/norm) for i in result]
+            else:
+                length = len(result)
+                result = [(i[0], i[1], 1/length) for i in result]
         return result
 
     def get_budget_alloc(self):
