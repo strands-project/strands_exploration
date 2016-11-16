@@ -5,6 +5,8 @@ import time
 import rospy
 import datetime
 import numpy as np
+from activity_exploration.msg import ExplorationChoice
+from mongodb_store.message_store import MessageStoreProxy
 from exploration_bid_manager.exploration_bidder import ExplorationBidder
 from scene_temporal_patterns.srv import SceneBestTimeEstimateSrv
 from scene_temporal_patterns.srv import SceneBestTimeEstimateSrvResponse
@@ -31,6 +33,10 @@ class BudgetControl(object):
             tmp.year, tmp.month, tmp.day, 0, 0
         )
         self.bidder = ExplorationBidder()
+        self.soma_config = rospy.get_param(
+            "~soma_config", "activity_exploration"
+        )
+        self._db = MessageStoreProxy(collection="activity_exploration_log")
         # all services to counters
         people_srv_name = rospy.get_param(
             "~people_srv", "/people_counter/people_best_time_estimate"
@@ -117,22 +123,44 @@ class BudgetControl(object):
                 scene_est = scene.estimates[scene.times.index(xtime)]
                 scene_roi = scene.region_ids[scene.times.index(xtime)]
             if scene_roi == act_roi == people_roi != "":
-                result.append((xtime, act_roi, scene_est+people_est+act_est))
+                result.append(
+                    (
+                        xtime, act_roi, scene_est+people_est+act_est,
+                        "scene_people_activity"
+                    )
+                )
             elif scene_roi == act_roi != "":
-                result.append((xtime, act_roi, scene_est+act_est))
-                result.append((xtime, people_roi, people_est))
+                result.append(
+                    (xtime, act_roi, scene_est+act_est, "scene_activity")
+                )
+                result.append(
+                    (xtime, people_roi, people_est, "people")
+                )
             elif scene_roi == people_roi != "":
-                result.append((xtime, scene_roi, scene_est+people_est))
-                result.append((xtime, act_roi, act_est))
+                result.append(
+                    (xtime, scene_roi, scene_est+people_est, "scene_people")
+                )
+                result.append((xtime, act_roi, act_est, "activity"))
             elif people_roi == act_roi != "":
-                result.append((xtime, act_roi, act_est+people_est))
-                result.append((xtime, scene_roi, scene_est))
+                result.append(
+                    (xtime, act_roi, act_est+people_est, "people_activity")
+                )
+                result.append((xtime, scene_roi, scene_est, "scene"))
             else:
-                result.append((xtime, act_roi, act_est))
-                result.append((xtime, scene_roi, scene_est))
-                result.append((xtime, people_roi, people_est))
+                result.append((xtime, act_roi, act_est, "activity"))
+                result.append((xtime, scene_roi, scene_est, "scene"))
+                result.append((xtime, people_roi, people_est, "people"))
         result = sorted(result, key=lambda i: i[2], reverse=True)
         result = result[:size]
+        # store options to db
+        msg = ExplorationChoice()
+        msg.soma_config = self.soma_config
+        for i in result:
+            msg.start_times.append(i[0])
+            msg.region_ids.append(i[1])
+            msg.estimates.append(i[2])
+            msg.contributing_models.append(i[3])
+        self._db.insert(msg)
         # normalize estimate
         norm = sum(zip(*result)[2])
         if norm > 0.0:

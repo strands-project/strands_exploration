@@ -6,6 +6,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   std_srvs
+  mongodb_store
   region_observation
   strands_executive_msgs
   strands_navigation_msgs
@@ -21,12 +22,10 @@ catkin_python_setup()
 ## Declare ROS messages, services and actions ##
 ################################################
 
-## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  ExplorationChoice.msg
+)
 
 add_service_files(
   FILES
@@ -52,7 +51,7 @@ generate_messages(
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES activity_exploration
-  CATKIN_DEPENDS region_observation roslib rospy strands_executive_msgs strands_navigation_msgs people_temporal_patterns activity_temporal_patterns std_msgs std_srvs exploration_bid_manager scene_temporal_patterns
+  CATKIN_DEPENDS region_observation roslib rospy strands_executive_msgs strands_navigation_msgs people_temporal_patterns activity_temporal_patterns std_msgs std_srvs exploration_bid_manager scene_temporal_patterns mongodb_store
 #  DEPENDS system_lib
 )
 

@@ -15,6 +15,7 @@
   <build_depend>roslib</build_depend>
   <build_depend>std_msgs</build_depend>
   <build_depend>std_srvs</build_depend>
+  <build_depend>mongodb_store</build_depend>
   <build_depend>region_observation</build_depend>
   <build_depend>exploration_bid_manager</build_depend>
   <build_depend>strands_executive_msgs</build_depend>
@@ -26,6 +27,7 @@
   <run_depend>roslib</run_depend>
   <run_depend>std_msgs</run_depend>
   <run_depend>std_srvs</run_depend>
+  <run_depend>mongodb_store</run_depend>
   <run_depend>region_observation</run_depend>
   <run_depend>exploration_bid_manager</run_depend>
   <run_depend>strands_executive_msgs</run_depend>
