@@ -26,7 +26,7 @@ class EdgeBider(object):
         rospy.on_shutdown(self.shutdown)
 
         self.service_timeout = rospy.get_param("~timeout",10)
-        self.time_of_slots = rospy.get_param("~slot_time",3600)
+        self.time_of_slots = rospy.get_param("~slot_time",1200)
         host = rospy.get_param("mongodb_host")
         port = rospy.get_param("mongodb_port")
         self.mongo_client = pymongo.MongoClient(host, port)
@@ -77,7 +77,7 @@ class EdgeBider(object):
         for i in results:
             if i['probs']>0.3:
                 #print task_time, i['time'].secs*2
-                task_time+=(i['time'].secs*2)
+                task_time+=(i['time'].secs*4)
                 if task_time < explotime.secs:
                     #print i['edge_id'], i['samples'], i['time'].secs, i['entropy'], i['score'], i['probs']
                     exptsk.append(i['edge_id'])
