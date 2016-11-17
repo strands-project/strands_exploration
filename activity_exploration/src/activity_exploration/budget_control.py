@@ -175,7 +175,7 @@ class BudgetControl(object):
         tmp = datetime.datetime.fromtimestamp(rospy.Time.now().secs)
         current_time = datetime.datetime(tmp.year, tmp.month, tmp.day, 0, 0)
         total_budget = self.bidder.available_tokens - self.bidder.currently_bid_tokens
-        if self._update_budget_date-current_time >= datetime.timedelta(days=1):
+        if current_time-self._update_budget_date >= datetime.timedelta(days=1):
             rospy.loginfo(
                 "Planning budget allocation for %s..." % str(
                     current_time.date()
