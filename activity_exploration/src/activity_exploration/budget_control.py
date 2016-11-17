@@ -19,11 +19,12 @@ from activity_temporal_patterns.srv import ActivityBestTimeEstimateSrvResponse
 class BudgetControl(object):
 
     def __init__(
-        self, start_time=(8, 0), end_time=(18, 0), max_visit=20
+        self, start_time=(8, 0), end_time=(18, 0),
+        observe_interval=rospy.Duration(1800)
     ):
         rospy.loginfo("Initiating budgetting control...")
         # hand-allocated budget (between 8am to 6pm)
-        self._max_visit = max_visit
+        self.observe_interval = observe_interval
         self._start_time = datetime.time(start_time[0], start_time[1])
         self._end_time = datetime.time(end_time[0], end_time[1])
         self.budget_alloc = list()
@@ -66,10 +67,10 @@ class BudgetControl(object):
             )
             self._scene_srv.wait_for_service()
 
-    def get_people_estimate(self, start, end):
+    def get_people_estimate(self, start, end, size):
         result = None
         try:
-            result = self._people_srv(start, end, self._max_visit, True)
+            result = self._people_srv(start, end, size, True)
         except NameError:
             result = PeopleBestTimeEstimateSrvResponse(list(), list(), list())
         norm = np.linalg.norm(result.estimates)
@@ -77,10 +78,10 @@ class BudgetControl(object):
             result.estimates = [i/norm for i in result.estimates]
         return result
 
-    def get_scene_estimate(self, start, end):
+    def get_scene_estimate(self, start, end, size):
         result = None
         try:
-            result = self._scene_srv(start, end, self._max_visit, True)
+            result = self._scene_srv(start, end, size, True)
         except NameError:
             result = SceneBestTimeEstimateSrvResponse(list(), list(), list())
         norm = np.linalg.norm(result.estimates)
@@ -88,10 +89,10 @@ class BudgetControl(object):
             result.estimates = [i/norm for i in result.estimates]
         return result
 
-    def get_activity_estimate(self, start, end):
+    def get_activity_estimate(self, start, end, size):
         result = None
         try:
-            result = self._act_srv(start, end, self._max_visit, True)
+            result = self._act_srv(start, end, size, True)
         except NameError:
             result = ActivityBestTimeEstimateSrvResponse(list(), list(), list())
         norm = np.linalg.norm(result.estimates)
@@ -102,9 +103,9 @@ class BudgetControl(object):
     def get_norm_estimate(self, start, end, size):
         result = list()  # (times, regions, estimates)
         # normalized estimate
-        scene = self.get_scene_estimate(start, end)
-        people = self.get_people_estimate(start, end)
-        activity = self.get_activity_estimate(start, end)
+        scene = self.get_scene_estimate(start, end, size)
+        people = self.get_people_estimate(start, end, size)
+        activity = self.get_activity_estimate(start, end, size)
         times = copy.deepcopy(scene.times + people.times + activity.times)
         for xtime in set(times):
             act_roi = ""
@@ -152,23 +153,23 @@ class BudgetControl(object):
                 result.append((xtime, people_roi, people_est, "people"))
         result = sorted(result, key=lambda i: i[2], reverse=True)
         result = result[:size]
-        if len(result):
-            # store options to db
-            msg = ExplorationChoice()
-            msg.soma_config = self.soma_config
-            for i in result:
-                msg.start_times.append(i[0])
-                msg.region_ids.append(i[1])
-                msg.estimates.append(i[2])
-                msg.contributing_models.append(i[3])
-            self._db.insert(msg)
-            # normalize estimate
-            norm = sum(zip(*result)[2])
-            if norm > 0.0:
-                result = [(i[0], i[1], i[2]/norm) for i in result]
-            else:
-                length = len(result)
-                result = [(i[0], i[1], 1/length) for i in result]
+        # if len(result):
+        #     # store options to db
+        #     msg = ExplorationChoice()
+        #     msg.soma_config = self.soma_config
+        #     for i in result:
+        #         msg.start_times.append(i[0])
+        #         msg.region_ids.append(i[1])
+        #         msg.estimates.append(i[2])
+        #         msg.contributing_models.append(i[3])
+        #     self._db.insert(msg)
+        #     # normalize estimate
+        #     norm = sum(zip(*result)[2])
+        #     if norm > 0.0:
+        #         result = [(i[0], i[1], i[2]/norm) for i in result]
+        #     else:
+        #         length = len(result)
+        #         result = [(i[0], i[1], 1/length) for i in result]
         return result
 
     def get_budget_alloc(self):
@@ -191,7 +192,7 @@ class BudgetControl(object):
             )
             start = rospy.Time(time.mktime(start.timetuple()))
             end = rospy.Time(time.mktime(end.timetuple()))
-            self._get_budget_alloc(start, end, total_budget, self._max_visit)
+            self._get_budget_alloc(start, end, total_budget)
             self._update_budget_date = current_time
         elif total_budget:
             tmp = datetime.datetime.fromtimestamp(rospy.Time.now().secs)
@@ -213,19 +214,43 @@ class BudgetControl(object):
             )
             start = rospy.Time(time.mktime(start.timetuple()))
             end = rospy.Time(time.mktime(end.timetuple()))
-            self._get_budget_alloc(
-                start, end, total_budget, self._max_visit/5
-            )
+            self._get_budget_alloc(start, end, total_budget)
         else:
             rospy.loginfo("No budget available, skipping process..")
 
-    def _get_budget_alloc(self, start, end, total_budget, size):
+    def _get_budget_alloc(self, start, end, total_budget):
         rospy.loginfo("Available budget: %d" % total_budget)
-        estimate = self.get_norm_estimate(start, end, size)
+        norms = list()
+        estimates = list()
+        while (start + self.observe_interval) <= end:
+            estimate = self.get_norm_estimate(
+                start, start + self.observe_interval, 2
+            )
+            if len(estimate):
+                estimates.append(estimate[0])
+            start = start + self.observe_interval
+        if len(estimates):
+            # normalize estimate
+            norm = sum(zip(*estimates)[2])
+            if norm > 0.0:
+                norms = [(i[0], i[1], i[2]/norm) for i in estimates]
+            else:
+                length = len(estimates)
+                norms = [(i[0], i[1], 1/length) for i in estimates]
         self.budget_alloc = [
             (
                 i[0], i[1], i[2]*total_budget
-            ) for i in estimate if int(i[2]*total_budget) > 0
+            ) for i in norms if int(i[2]*total_budget) > 0
         ]
+        if len(self.budget_alloc):
+            # store options to db
+            msg = ExplorationChoice()
+            msg.soma_config = self.soma_config
+            for i in estimates:
+                msg.start_times.append(i[0])
+                msg.region_ids.append(i[1])
+                msg.estimates.append(i[2])
+                msg.contributing_models.append(i[3])
+            self._db.insert(msg)
         self.available_budget = total_budget
         rospy.loginfo("Budget allocation: %s" % str(self.budget_alloc))
