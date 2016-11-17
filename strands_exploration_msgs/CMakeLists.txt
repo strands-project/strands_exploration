@@ -21,6 +21,7 @@ add_message_files(
   SFrelement.msg
   Frelement.msg
   FremenGrid.msg
+  ExplorationSchedule.msg
 )
 
 add_service_files(
