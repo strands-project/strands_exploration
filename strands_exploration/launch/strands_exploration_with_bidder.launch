@@ -1,0 +1,24 @@
+<launch>
+    <arg name="soma_config"/>
+    <arg name="periodic_cycle" default="10080"/>
+    <arg name="schedule_directory" default="/home/strands/spatiotemporal_exploration/schedules"/>
+    <arg name="grids_directory" default="/home/strands/spatiotemporal_exploration/3dmaps"/>
+
+
+    <arg name="machine" default="localhost" />
+    <arg name="user" default="" />
+    <machine name="$(arg machine)" address="$(arg machine)" env-loader="$(optenv ROS_ENV_LOADER )" user="$(arg user)" default="true"/>
+
+    <node pkg="edge_exploration" type="edge_bidder.py" name="edge_exploration_bidder" output="screen">
+    </node>
+
+    <include file="$(find spatiotemporal_exploration)/launch/spatiotemporal_exploration.launch">
+        <arg name="schedule_directory" value="$(arg schedule_directory)"/>
+        <arg name="grids_directory" value="$(arg grids_directory)"/>
+    </include>
+    
+    <include file="$(find activity_exploration)/launch/activity_exploration.launch">
+        <arg name="soma_config" value="$(arg soma_config)"/>
+    </include>
+    
+</launch>
