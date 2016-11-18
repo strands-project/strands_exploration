@@ -33,7 +33,7 @@ class ActivityRecommender(object):
             rospy.get_param("~exploration_duration", "600")
         )
         observe_interval = rospy.Duration(self.exploration_duration.secs*3)
-        self.budget_control = BudgetControl(observe_interval)
+        self.budget_control = BudgetControl(observe_interval=observe_interval)
         # all services to counters
         people_srv_name = rospy.get_param(
             "~people_srv", "/people_counter/people_best_time_estimate"
