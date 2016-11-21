@@ -1,6 +1,8 @@
 <launch>
     <arg name="soma_config"/>
-    <arg name="periodic_cycle" default="10080"/>
+    <arg name="activity_srv" default="/activity_counter/activity_best_time_estimate"/>
+    <arg name="scene_srv" default="/scene_counter/scene_best_time_estimate"/>
+    <arg name="people_srv" default="/people_counter/people_best_time_estimate"/>
     <arg name="schedule_directory" default="/home/strands/spatiotemporal_exploration/schedules"/>
     <arg name="grids_directory" default="/home/strands/spatiotemporal_exploration/3dmaps"/>
 
@@ -19,6 +21,9 @@
     
     <include file="$(find activity_exploration)/launch/activity_exploration.launch">
         <arg name="soma_config" value="$(arg soma_config)"/>
+        <arg name="activity_srv" value="$(arg activity_srv)"/>
+        <arg name="people_srv" value="$(arg people_srv)"/>
+        <arg name="scene_srv" value="$(arg scene_srv)"/>
     </include>
     
 </launch>
