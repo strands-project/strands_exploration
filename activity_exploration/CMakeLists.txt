@@ -2,18 +2,18 @@ cmake_minimum_required(VERSION 2.8.3)
 project(activity_exploration)
 
 find_package(catkin REQUIRED COMPONENTS
-  tf
+  roslib
   rospy
   std_msgs
-  sensor_msgs
-  soma_manager
+  std_srvs
   mongodb_store
-  geometry_msgs
-  soma_map_manager
-  visualization_msgs
-  human_trajectory # poisson stuff
+  region_observation
+  strands_executive_msgs
   strands_navigation_msgs
-  strands_exploration_msgs
+  scene_temporal_patterns
+  people_temporal_patterns
+  activity_temporal_patterns
+  exploration_bid_manager
 )
 
 catkin_python_setup()
@@ -24,14 +24,19 @@ catkin_python_setup()
 
 add_message_files(
   FILES
-  RegionObservationTime.msg
-  PoissonMsg.msg
+  ExplorationChoice.msg
 )
 
-# add_service_files(
+add_service_files(
+  FILES
+  ChangeMethodSrv.srv
+)
+
+## Generate actions in the 'action' folder
+# add_action_files(
 #   FILES
-#   Service1.srv
-#   Service2.srv
+#   Action1.action
+#   Action2.action
 # )
 
 generate_messages(
@@ -45,8 +50,8 @@ generate_messages(
 
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES region_observation
-  CATKIN_DEPENDS mongodb_store rospy soma_manager tf soma_map_manager geometry_msgs visualization_msgs human_trajectory strands_navigation_msgs strands_exploration_msgs std_msgs sensor_msgs
+#  LIBRARIES activity_exploration
+  CATKIN_DEPENDS region_observation roslib rospy strands_executive_msgs strands_navigation_msgs people_temporal_patterns activity_temporal_patterns std_msgs std_srvs exploration_bid_manager scene_temporal_patterns mongodb_store
 #  DEPENDS system_lib
 )
 
@@ -62,14 +67,12 @@ include_directories(
 ## Install ##
 #############
 
-## Mark executable scripts (Python etc.) for installation
-## in contrast to setup.py, you can choose the destination
-install(PROGRAMS
-  scripts/counting_manager.py
-  src/region_observation/observe.py
-  src/periodic_poisson_processes/people_poisson.py
-  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
-install(DIRECTORY launch
-    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-)
+# install(PROGRAMS
+#   scripts/counting_manager.py
+#   src/region_observation/observe.py
+#   src/periodic_poisson_processes/people_poisson.py
+#   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+# )
+# install(DIRECTORY launch
+#     DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+# )
