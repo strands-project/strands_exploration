@@ -1,6 +1,6 @@
 import rospy
 
-from strands_executive_msgs.srv import AddTask
+from strands_executive_msgs.srv import AddTasks
 from strands_executive_msgs.msg import TaskEvent
 
 def msg_event_to_string(msg_event):
@@ -17,7 +17,7 @@ class ExplorationBidder(object):
 
     def __init__(self):
         
-        self.add_task = rospy.ServiceProxy('/task_executor/add_task', AddTask) 
+        self.add_task = rospy.ServiceProxy('/robot_routine/add_tasks', AddTasks) 
         
         self.task_event_sub = rospy.Subscriber('/task_executor/events', TaskEvent, self.process_task_event, queue_size = None)
         
@@ -69,13 +69,15 @@ class ExplorationBidder(object):
                 del self.queued_tasks[i]
             elif self.available_tokens - self.currently_added_tokens - task.priority >= 0:
                 try:
-                    task_id = self.add_task(task).task_id
+                    add_response = self.add_task([task])
+                    task_id = add_response.task_ids[0]
                     rospy.loginfo("Added task " + str(task) + " with ID: " + str(task_id))
                     self.added_tasks[task_id] = task
                     self.currently_added_tokens+=task.priority
                     del self.queued_tasks[i]
                 except Exception, e:
                     rospy.logerr("Error calling add task service: " + str(e))
+                    rospy.sleep(0.1)
             else:
                 i+=1
 
