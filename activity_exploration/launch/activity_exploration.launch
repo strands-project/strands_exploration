@@ -2,7 +2,7 @@
     <arg name="soma_config"/>
     <arg name="with_config_file" default="true"/>
     <arg name="exploration_duration" default="600"/>
-    <arg name="exploration_update_interval" default="3600"/>
+    <arg name="exploration_update_interval" default="600"/>
     <arg name="scene_srv" default=""/>
     <arg name="activity_srv" default=""/>
     <arg name="people_srv" default="/people_counter/people_best_time_estimate"/>
@@ -13,7 +13,7 @@
 
     <machine name="$(arg machine)" address="$(arg machine)" env-loader="$(optenv ROS_ENV_LOADER )" user="$(arg user)" default="true"/>
 
-    <node pkg="activity_exploration" type="exploration.py" name="arms" output="screen" respawn="false">
+    <node pkg="activity_exploration" type="exploration.py" name="arms" output="log" respawn="false">
         <param name="soma_config" value="$(arg soma_config)" type="string"/>
         <param name="with_config_file" value="$(arg with_config_file)" type="boolean"/>
         <param name="exploration_duration" value="$(arg exploration_duration)" type="int"/>
