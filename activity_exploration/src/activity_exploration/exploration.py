@@ -88,7 +88,7 @@ class ActivityRecommender(object):
         return ChangeMethodSrvResponse()
 
     def request_exploration(self, event):
-        self.budget_control.get_budget_alloc()
+        self.budget_control.get_budget_alloc(self.region_wps.keys())
         for (start, roi, budget) in self.budget_control.budget_alloc:
             wp = self.region_wps[roi]
             start_time = start - self.exploration_duration
