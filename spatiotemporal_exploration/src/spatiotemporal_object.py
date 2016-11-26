@@ -15,12 +15,13 @@ class SomaExploration():
 
     def __init__(self):
         
-        self.db = rospy.get_param('db', 'message_store')
-        self.collection = rospy.get_param('collection', 'view_stats')
-        self.action = rospy.get_param('action_server', 'object_learning')
-        self.rescheduleInterval = rospy.get_param('rescheduleInterval', 86400)
-        self.taskDuration = rospy.get_param('taskDuration', 1200)
-        self.schedule_pub = rospy.Publisher('/object_exploration', ExplorationSchedule, queue_size=10)
+        self.db = rospy.get_param('~db', 'message_store')
+        self.collection = rospy.get_param('~collection', 'view_stats')
+        self.tag = rospy.get_param('~exploration_tag', 'Exploration')
+        self.action = rospy.get_param('~action_server', 'object_learning')
+        self.rescheduleInterval = rospy.get_param('~rescheduleInterval', 86400)
+        self.taskDuration = rospy.get_param('~taskDuration', 1200)
+        self.schedule_pub = rospy.Publisher('/object_schedule', ExplorationSchedule, queue_size=10)
         self.max_entropy = 0.0
         self.numSlots = 24*3600/self.taskDuration;
         
@@ -32,7 +33,7 @@ class SomaExploration():
         try:
             rospy.wait_for_service('/topological_map_manager/get_tagged_nodes', timeout = 10)
             self.topo_nodes = rospy.ServiceProxy('/topological_map_manager/get_tagged_nodes', GetTaggedNodes)
-            self.data = self.topo_nodes('Exploration')
+            self.data = self.topo_nodes(self.tag)
         except rospy.ServiceException, e:
                 rospy.logerr("Service call failed %s. Is Frongo started?"%e)
     
@@ -107,7 +108,6 @@ class SomaExploration():
         #2 -- entropies service
 
         #get epochs for each time slot
-        
         times = []
         for i in range(self.numSlots):      
             t = int(self.midnight+3600*24/self.numSlots*i)

@@ -94,7 +94,7 @@ class SpatioTemporalBidder(object):
                 
                 if bid > 0:
                     print "Bid Amount: ", bid, "Node: ", self.schedule_sorted[-1]['nodeID'], "Time: ", self.schedule_sorted[-1]['timeInfo'] 
-                    self.bidder.add_task_bid(task, bid)
+                    #self.bidder.add_task_bid(task, bid)
                 else:
                     print "bid value to low to add task!"
                     print "current budget: ", self.bidder.available_tokens
