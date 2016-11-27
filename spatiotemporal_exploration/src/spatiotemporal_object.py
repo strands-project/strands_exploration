@@ -18,7 +18,6 @@ class SomaExploration():
         self.db = rospy.get_param('~db', 'message_store')
         self.collection = rospy.get_param('~collection', 'view_stats')
         self.tag = rospy.get_param('~exploration_tag', 'Exploration')
-        self.action = rospy.get_param('~action_server', 'object_learning')
         self.rescheduleInterval = rospy.get_param('~rescheduleInterval', 86400)
         self.taskDuration = rospy.get_param('~taskDuration', 1200)
         self.schedule_pub = rospy.Publisher('/object_schedule', ExplorationSchedule, queue_size=10)
@@ -161,7 +160,6 @@ class SomaExploration():
             new_schedule.timeInfo.append(times[s])
             
         new_schedule.midnight = times[0]
-        new_schedule.action = self.action
 
         #4 -- store schedule!
         self.soma_schedule = new_schedule
