@@ -671,7 +671,7 @@ int main(int argc,char* argv[])
 {
     //determine ROS time to local mignight offset - used to replan at midnight
     tzset();
-    timeOffset = timezone+daylight*3600;
+    timeOffset = 0;//timezone+daylight*3600;
     if (debug) ROS_DEBUG("Local time offset %i",timeOffset);
 
     //initialize ROS

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(spatiotemporal_exploration)
 
-find_package(catkin REQUIRED COMPONENTS mongodb_store roscpp strands_executive_msgs std_msgs std_srvs strands_navigation_msgs mongodb_store_msgs geometry_msgs dynamic_reconfigure image_transport tf scitos_ptu strands_exploration_msgs) 
+find_package(catkin REQUIRED COMPONENTS mongodb_store roscpp strands_executive_msgs std_msgs std_srvs strands_navigation_msgs mongodb_store_msgs geometry_msgs dynamic_reconfigure image_transport tf scitos_ptu strands_exploration_msgs frongo) 
 
 
 generate_dynamic_reconfigure_options(
