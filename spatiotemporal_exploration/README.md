@@ -5,7 +5,6 @@ This package provides the nodes necessary to run spatio-temporal exploration ove
 ###Parameters
 
 * `tag_node`: nodes where is not possible to build a ground truth. The exploration task is set by an exploration routine.
-* `tag_ground_node`: nodes where a ground truth will be build. The exploration task is sent to the scheduler.
 * `schedule_directory`: directory where the schedules are saved.
 * `grids_directory`: directory where the 3D grids are saved.
 * `resolution`: voxel size.
