@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(strands_exploration_msgs)
 
-find_package(catkin REQUIRED COMPONENTS message_generation std_msgs geometry_msgs sensor_msgs actionlib_msgs)
+find_package(catkin REQUIRED COMPONENTS message_generation std_msgs geometry_msgs sensor_msgs actionlib_msgs strands_executive_msgs)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -22,6 +22,7 @@ add_message_files(
   Frelement.msg
   FremenGrid.msg
   ExplorationSchedule.msg
+  ExplorationTaskStatus.msg
 )
 
 add_service_files(
@@ -45,6 +46,7 @@ generate_messages(
    DEPENDENCIES
    std_msgs
    geometry_msgs
+   strands_executive_msgs
 )
 
 ###################################
