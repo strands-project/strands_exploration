@@ -31,6 +31,7 @@
   <build_depend>strands_exploration_msgs</build_depend>  
   <build_depend>image_transport</build_depend>  
   <build_depend>dynamic_reconfigure</build_depend> 
+  <build_depend>frongo</build_depend>
 
   <run_depend>roscpp</run_depend>
   <run_depend>genmsg</run_depend>
@@ -47,7 +48,8 @@
   <run_depend>scitos_ptu</run_depend>
   <run_depend>image_transport</run_depend>
   <run_depend>dynamic_reconfigure</run_depend>  
-  <export>
+  <run_depend>frongo</run_depend>  
+<export>
 
   </export>
 </package>
