@@ -172,7 +172,7 @@ class BudgetControl(object):
         #         result = [(i[0], i[1], 1/length) for i in result]
         return result
 
-    def get_budget_alloc(self):
+    def get_budget_alloc(self, recommended_rois=list()):
         tmp = datetime.datetime.fromtimestamp(rospy.Time.now().secs)
         current_time = datetime.datetime(tmp.year, tmp.month, tmp.day, 0, 0)
         total_budget = self.bidder.available_tokens - self.bidder.currently_bid_tokens
@@ -192,7 +192,7 @@ class BudgetControl(object):
             )
             start = rospy.Time(time.mktime(start.timetuple()))
             end = rospy.Time(time.mktime(end.timetuple()))
-            self._get_budget_alloc(start, end, total_budget)
+            self._get_budget_alloc(start, end, total_budget, recommended_rois)
             self._update_budget_date = current_time
         elif total_budget:
             tmp = datetime.datetime.fromtimestamp(rospy.Time.now().secs)
@@ -214,11 +214,11 @@ class BudgetControl(object):
             )
             start = rospy.Time(time.mktime(start.timetuple()))
             end = rospy.Time(time.mktime(end.timetuple()))
-            self._get_budget_alloc(start, end, total_budget)
+            self._get_budget_alloc(start, end, total_budget, recommended_rois)
         else:
             rospy.loginfo("No budget available, skipping process..")
 
-    def _get_budget_alloc(self, start, end, total_budget):
+    def _get_budget_alloc(self, start, end, total_budget, recommended_rois=[]):
         rospy.loginfo("Available budget: %d" % total_budget)
         norms = list()
         estimates = list()
@@ -226,6 +226,8 @@ class BudgetControl(object):
             estimate = self.get_norm_estimate(
                 start, start + self.observe_interval, 2
             )
+            if recommended_rois != list():
+                estimate = [i for i in estimate if i[1] in recommended_rois]
             if len(estimate):
                 estimates.append(estimate[0])
             start = start + self.observe_interval

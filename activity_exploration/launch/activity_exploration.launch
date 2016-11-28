@@ -2,7 +2,7 @@
     <arg name="soma_config"/>
     <arg name="with_config_file" default="true"/>
     <arg name="exploration_duration" default="600"/>
-    <arg name="exploration_update_interval" default="3600"/>
+    <arg name="exploration_update_interval" default="600"/>
     <arg name="scene_srv" default=""/>
     <arg name="activity_srv" default=""/>
     <arg name="people_srv" default="/people_counter/people_best_time_estimate"/>
