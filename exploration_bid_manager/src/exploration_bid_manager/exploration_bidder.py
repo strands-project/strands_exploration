@@ -1,5 +1,7 @@
 import rospy
-
+from datetime import datetime
+from dateutil.tz import *
+from std_srvs.srv import Empty
 from strands_executive_msgs.srv import AddTasks
 from strands_executive_msgs.msg import TaskEvent
 from strands_exploration_msgs.msg import ExplorationTaskStatus
@@ -22,6 +24,8 @@ class ExplorationBidder(object):
         self.add_task = rospy.ServiceProxy('/robot_routine/add_tasks', AddTasks) 
         
         self.task_event_sub = rospy.Subscriber('/task_executor/events', TaskEvent, self.process_task_event, queue_size = None)
+        
+        self.get_info_srv = rospy.Service('~get_bid_info', Empty, self.get_info_cb)
         
         #REAL
         self.period = rospy.Duration(rospy.get_param('~period', 60*60*24))
@@ -120,7 +124,35 @@ class ExplorationBidder(object):
                 del self.added_tasks[task.task_id]
             self.process_task_queue()
 
-            
+    def get_info_cb(self, req):
+        print "\n\n\n--------------------------------------------------------------------------------------------------------------------"
+        print "ADDED TASKS"
+        for task_id in self.added_tasks:
+            task = self.added_tasks[task_id]
+            print "TASK_ID:", task_id
+            print "TASK:", task.action
+            print "BID:", task.priority
+            print "EXECUTE BETWEEN " + datetime.fromtimestamp(task.start_after.to_sec(), tzlocal()).strftime('%d/%m/%y %H:%M:%S') + " AND " +  datetime.fromtimestamp(task.end_before.to_sec(), tzlocal()).strftime('%d/%m/%y %H:%M:%S')
+            print "\n"
+        print "--------------------------------------------------------------------------------------------------------------------"
+        print "QUEUED TASKS: "
+        for task in self.added_tasks:
+            print "TASK:", task.action
+            print "BID:", task.priority
+            print "EXECUTE BETWEEN " + datetime.fromtimestamp(task.start_after.to_sec(), tzlocal()).strftime('%d/%m/%y %H:%M:%S') + " AND " +  datetime.fromtimestamp(task.end_before.to_sec(), tzlocal()).strftime('%d/%m/%y %H:%M:%S')
+            print "\n"
+        print "--------------------------------------------------------------------------------------------------------------------"
+        
+        print "AVAILABLE TOKENS: ", self.available_tokens
+        print "--------------------------------------------------------------------------------------------------------------------"
+
+        print "BID TOKENS: ", self.currently_bid_tokens
+        print "--------------------------------------------------------------------------------------------------------------------"
+        
+        print "ADDED TOKENS: ", self.currently_added_tokens
+        print "--------------------------------------------------------------------------------------------------------------------"
+        print "\n\n\n\n\n\n\n"
+        return []        
         
 
         
