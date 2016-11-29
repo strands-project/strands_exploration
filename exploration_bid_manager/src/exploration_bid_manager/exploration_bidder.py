@@ -1,7 +1,11 @@
 import rospy
-
-from strands_executive_msgs.srv import AddTask
+from datetime import datetime
+from dateutil.tz import *
+from std_srvs.srv import Empty
+from strands_executive_msgs.srv import AddTasks
 from strands_executive_msgs.msg import TaskEvent
+from strands_exploration_msgs.msg import ExplorationTaskStatus
+from mongodb_store.message_store import MessageStoreProxy
 
 def msg_event_to_string(msg_event):
     if msg_event == TaskEvent.TASK_FAILED:
@@ -17,9 +21,11 @@ class ExplorationBidder(object):
 
     def __init__(self):
         
-        self.add_task = rospy.ServiceProxy('/task_executor/add_task', AddTask) 
+        self.add_task = rospy.ServiceProxy('/robot_routine/add_tasks', AddTasks) 
         
         self.task_event_sub = rospy.Subscriber('/task_executor/events', TaskEvent, self.process_task_event, queue_size = None)
+        
+        self.get_info_srv = rospy.Service('~get_bid_info', Empty, self.get_info_cb)
         
         #REAL
         self.period = rospy.Duration(rospy.get_param('~period', 60*60*24))
@@ -36,6 +42,8 @@ class ExplorationBidder(object):
         self.added_tasks = {}
         self.queued_tasks = []
         
+        self.mongo = MessageStoreProxy(collection='exploration_tasks')
+        
         self.timer=rospy.Timer(self.period, self.update_budget)
         
     def update_budget(self, timer_event):
@@ -48,8 +56,15 @@ class ExplorationBidder(object):
             return False
         if bid <= 0:
             rospy.logwarn("Zero or negative bids are not allowed. Ignoring." + str(task))
+            self.mongo.insert(ExplorationTaskStatus(result = ExplorationTaskStatus.IGNORED,
+                                                    task = task,
+                                                    bid = bid))
+            return False
         if self.available_tokens - bid < 0:
             rospy.logwarn("Not enough tokens available to bid. Ignoring." + str(task))
+            self.mongo.insert(ExplorationTaskStatus(result = ExplorationTaskStatus.IGNORED,
+                                                    task = task,
+                                                    bid = bid))
             return False
         else:
             task.priority = bid
@@ -66,16 +81,21 @@ class ExplorationBidder(object):
             if rospy.get_rostime() > task.end_before:
                 rospy.logwarn("Task deadline was surpassed before having budget to add it to the schedule. " + str(task))
                 self.currently_bid_tokens-=task.priority
+                self.mongo.insert(ExplorationTaskStatus(result = ExplorationTaskStatus.NOT_ADDED,
+                                                    task = task,
+                                                    bid = task.priority))
                 del self.queued_tasks[i]
             elif self.available_tokens - self.currently_added_tokens - task.priority >= 0:
                 try:
-                    task_id = self.add_task(task).task_id
+                    add_response = self.add_task([task])
+                    task_id = add_response.task_ids[0]
                     rospy.loginfo("Added task " + str(task) + " with ID: " + str(task_id))
                     self.added_tasks[task_id] = task
                     self.currently_added_tokens+=task.priority
                     del self.queued_tasks[i]
                 except Exception, e:
                     rospy.logerr("Error calling add task service: " + str(e))
+                    rospy.sleep(0.1)
             else:
                 i+=1
 
@@ -83,20 +103,56 @@ class ExplorationBidder(object):
     def process_task_event(self, msg):
         task = msg.task
         if self.added_tasks.has_key(task.task_id):
+            rospy.loginfo("ANALYSING")
             if msg.event == TaskEvent.DROPPED:
                 rospy.loginfo("Task was dropped by the executor. " + str(task))
                 self.currently_bid_tokens-=task.priority
                 self.currently_added_tokens-=task.priority
+                self.mongo.insert(ExplorationTaskStatus(result = ExplorationTaskStatus.DROPPED,
+                                                    task = task,
+                                                    bid = task.priority))
                 del self.added_tasks[task.task_id]
-            elif msg.event in [TaskEvent.TASK_FAILED, TaskEvent.TASK_SUCCEEDED, TaskEvent.TASK_PREEMPTED]:
+            elif msg.event == TaskEvent.TASK_FAILED or  msg.event == TaskEvent.TASK_SUCCEEDED or msg.event ==  TaskEvent.TASK_PREEMPTED:
                 rospy.loginfo("Task has finished execution with outcome " + msg_event_to_string(msg.event) + ". Retrieving bid of " + str(task.priority) + ". Task: " + str(task))
                 self.currently_bid_tokens-=task.priority
                 self.available_tokens-=task.priority
                 self.currently_added_tokens-=task.priority
+                self.mongo.insert(ExplorationTaskStatus(result = ExplorationTaskStatus.EXECUTED,
+                                                    task = task,
+                                                    bid = task.priority,
+                                                    execution_status = msg.event))
                 del self.added_tasks[task.task_id]
             self.process_task_queue()
 
-            
+    def get_info_cb(self, req):
+        print "\n\n\n--------------------------------------------------------------------------------------------------------------------"
+        print "ADDED TASKS"
+        for task_id in self.added_tasks:
+            task = self.added_tasks[task_id]
+            print "TASK_ID:", task_id
+            print "TASK:", task.action
+            print "BID:", task.priority
+            print "EXECUTE BETWEEN " + datetime.fromtimestamp(task.start_after.to_sec(), tzlocal()).strftime('%d/%m/%y %H:%M:%S') + " AND " +  datetime.fromtimestamp(task.end_before.to_sec(), tzlocal()).strftime('%d/%m/%y %H:%M:%S')
+            print "\n"
+        print "--------------------------------------------------------------------------------------------------------------------"
+        print "QUEUED TASKS: "
+        for task in self.added_tasks:
+            print "TASK:", task.action
+            print "BID:", task.priority
+            print "EXECUTE BETWEEN " + datetime.fromtimestamp(task.start_after.to_sec(), tzlocal()).strftime('%d/%m/%y %H:%M:%S') + " AND " +  datetime.fromtimestamp(task.end_before.to_sec(), tzlocal()).strftime('%d/%m/%y %H:%M:%S')
+            print "\n"
+        print "--------------------------------------------------------------------------------------------------------------------"
+        
+        print "AVAILABLE TOKENS: ", self.available_tokens
+        print "--------------------------------------------------------------------------------------------------------------------"
+
+        print "BID TOKENS: ", self.currently_bid_tokens
+        print "--------------------------------------------------------------------------------------------------------------------"
+        
+        print "ADDED TOKENS: ", self.currently_added_tokens
+        print "--------------------------------------------------------------------------------------------------------------------"
+        print "\n\n\n\n\n\n\n"
+        return []        
         
 
         

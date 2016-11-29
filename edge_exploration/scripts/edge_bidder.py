@@ -212,13 +212,13 @@ class EdgeBider(object):
         self.get_info()
 
     def get_info(self):
-        print "AVAILABLE TOKENS: ", self.bidder.available_tokens
-        print "BID TOKENS: ", self.bidder.currently_bid_tokens
+        #print "AVAILABLE TOKENS: ", self.bidder.available_tokens
+        #print "BID TOKENS: ", self.bidder.currently_bid_tokens
         #print "ADDED TOKENS: ", self.bidder.currently_added_tokens
         #print "ADDED TASKS: ", self.bidder.added_tasks
-        print "---------------------------------------------------------------"
+        #print "---------------------------------------------------------------"
         #print "QUEUED TASKS: ", self.bidder.queued_tasks
-        print "\n"
+        #print "\n"
         return []
 
      
