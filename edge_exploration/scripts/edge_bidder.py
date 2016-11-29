@@ -78,7 +78,7 @@ class EdgeBider(object):
             if i['probs']>0.3:
                 #print task_time, i['time'].secs*2
                 task_time+=(i['time'].secs*4)
-                if task_time < explotime.secs:
+                if task_time < (explotime.secs/2):
                     #print i['edge_id'], i['samples'], i['time'].secs, i['entropy'], i['score'], i['probs']
                     exptsk.append(i['edge_id'])
                     tskscr.append(i['score'])
