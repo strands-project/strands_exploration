@@ -110,7 +110,7 @@ class SpatioTemporalBidder(object):
                               start_node_id=self.schedule_sorted[-1]['nodeID'],
                             end_node_id=self.schedule_sorted[-1]['nodeID'],
                             start_after=start_time,
-                            end_before=start_time + rospy.Duration(60*30),
+                            end_before=start_time + rospy.Duration(60*10),
                             max_duration=task_duration,
                             )
                         
@@ -129,7 +129,7 @@ class SpatioTemporalBidder(object):
                                       self.schedule_sorted[-1]['nodeID'],
                                     self.schedule_sorted[-1]['timeInfo'], self.schedule_sorted[-1]['mode'],
                                     start_time.secs) 
-                        #self.bidder.add_task_bid(task, bid)
+                        self.bidder.add_task_bid(task, bid)
                     else:
                         rospy.loginfo("Bidder: Bid value to low to add task!")
                         rospy.loginfo("Bidder: Current budget: %d", self.bidder.available_tokens)
