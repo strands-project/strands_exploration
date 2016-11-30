@@ -5,8 +5,7 @@ import numpy as np
 import pymongo
 import math
 import copy
-
-#from math import ceil
+import datetime
 
 from strands_executive_msgs.msg import Task
 from exploration_bid_manager.exploration_bidder import ExplorationBidder
@@ -78,14 +77,20 @@ class EdgeBider(object):
             if i['probs']>0.3:
                 #print task_time, i['time'].secs*2
                 task_time+=(i['time'].secs*4)
-                if task_time < (explotime.secs/2):
+                if task_time < (explotime.secs/4):
                     #print i['edge_id'], i['samples'], i['time'].secs, i['entropy'], i['score'], i['probs']
                     exptsk.append(i['edge_id'])
                     tskscr.append(i['score'])
                 else:
                     break
         
-        tokens_to_use = self.bidder.available_tokens/((3600*24)/self.time_of_slots)
+        #tokens_to_use = self.bidder.available_tokens/((3600*24)/self.time_of_slots)
+        x_slots = np.linspace(0.0, 24.0, (3*24))
+        myd=self.bidder.available_tokens*norm.pdf(x_slots, 12, 4)
+        now = datetime.datetime.now()
+        slot = now.hour*3+(int(np.floor(now.minute/20.0))+1)
+        tokens_to_use= np.ceil(myd[slot])
+
         total_entropy = sum(tskscr)
 
         total_tokens=0
