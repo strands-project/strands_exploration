@@ -7,6 +7,8 @@ from strands_executive_msgs.msg import Task
 from exploration_bid_manager.exploration_bidder import ExplorationBidder
 from strands_exploration_msgs.msg import ExplorationSchedule
 from strands_executive_msgs import task_utils
+from tsc_routine.object_search_dfns import *
+from tsc_routine.object_search_dfns_quasimodo import *
 
 class SpatioTemporalBidder(object):
 
@@ -113,11 +115,17 @@ class SpatioTemporalBidder(object):
                             end_before=start_time + rospy.Duration(60*10),
                             max_duration=task_duration,
                             )
+                     
+                    if self.schedule_sorted[-1]['mode'] == 'object_full':
+                        rois = get_object_search_dfn_quasimodo(self.schedule_sorted[-1]['nodeID'])
+                    else:
+                        rois = get_object_search_dfn(self.schedule_sorted[-1]['nodeID'])
                         
+                    rois = get_object_search_dfn('ReceptionKitchen')
                     task_utils.add_string_argument(task, self.schedule_sorted[-1]['nodeID'])
-                    #task_utils.add_string_argument(task, standing_roi)#????
-                    #task_utils.add_string_argument(task, surface_roi) #????
-                    #task_utils.add_string_argument(task, self.schedule_sorted[-1]['mode'])
+                    task_utils.add_string_argument(task, rois[1])
+                    task_utils.add_string_argument(task, rois[2])
+                    task_utils.add_string_argument(task, self.schedule_sorted[-1]['mode'])
                                         
                     bidRatio = (self.num_slots - nextSlot)/(self.bidder_timer/self.slot_duration)
                     bid = int(ceil((self.bidder.available_tokens - self.bidder.currently_bid_tokens)/bidRatio))
@@ -125,11 +133,11 @@ class SpatioTemporalBidder(object):
 
                 
                     if bid > 0:
-                        rospy.loginfo("Bidder: Bid Amount: %d -- Node: %s -- Time: %d -- Mode: %s -- Start Time: %d",bid,
+                        rospy.loginfo("Bidder: Bid Amount: %d -- Node: %s -- Time: %d -- Mode: %s -- Start Time: %d -- Roi: %s -- Surface: %s",bid,
                                       self.schedule_sorted[-1]['nodeID'],
                                     self.schedule_sorted[-1]['timeInfo'], self.schedule_sorted[-1]['mode'],
-                                    start_time.secs) 
-                        self.bidder.add_task_bid(task, bid)
+                                    start_time.secs, rois[1],rois[2]) 
+                        #self.bidder.add_task_bid(task, bid)
                     else:
                         rospy.loginfo("Bidder: Bid value to low to add task!")
                         rospy.loginfo("Bidder: Current budget: %d", self.bidder.available_tokens)
