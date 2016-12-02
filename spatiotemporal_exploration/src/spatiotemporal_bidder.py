@@ -83,7 +83,7 @@ class SpatioTemporalBidder(object):
                 lookAhead = self.bidder_timer/self.slot_duration
             
                 maxSlot = nextSlot + lookAhead
-                #print "maxSlot: ", maxSlot
+
                 if maxSlot - nextSlot > 1:        
                     #print "sorting schedules..."
                     self.schedule_sorted = []
@@ -106,7 +106,6 @@ class SpatioTemporalBidder(object):
                 
                     rospy.loginfo("Adding task...")
                     start_time = rospy.Time(secs = self.schedule_sorted[-1]['timeInfo'], nsecs = 0)
-                    #end_time = rospy.Time(secs = self.schedule_sorted[-1]['timeInfo'] + self.slot_duration, nsecs = 0)
                     task_duration = rospy.Duration(secs = 60*15)                
                     task=Task(action= 'search_object',
                               start_node_id=self.schedule_sorted[-1]['nodeID'],
@@ -137,7 +136,7 @@ class SpatioTemporalBidder(object):
                                       self.schedule_sorted[-1]['nodeID'],
                                     self.schedule_sorted[-1]['timeInfo'], self.schedule_sorted[-1]['mode'],
                                     start_time.secs, rois[1],rois[2]) 
-                        #self.bidder.add_task_bid(task, bid)
+                        self.bidder.add_task_bid(task, bid)
                     else:
                         rospy.loginfo("Bidder: Bid value to low to add task!")
                         rospy.loginfo("Bidder: Current budget: %d", self.bidder.available_tokens)
