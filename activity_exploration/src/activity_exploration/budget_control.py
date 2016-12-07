@@ -224,7 +224,7 @@ class BudgetControl(object):
         estimates = list()
         while (start + self.observe_interval) <= end:
             estimate = self.get_norm_estimate(
-                start, start + self.observe_interval, 2
+                start, start + self.observe_interval, 5
             )
             if recommended_rois != list():
                 estimate = [i for i in estimate if i[1] in recommended_rois]
