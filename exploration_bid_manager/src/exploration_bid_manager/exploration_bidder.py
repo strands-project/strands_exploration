@@ -136,7 +136,7 @@ class ExplorationBidder(object):
             print "\n"
         print "--------------------------------------------------------------------------------------------------------------------"
         print "QUEUED TASKS: "
-        for task in self.added_tasks:
+        for task in self.queued_tasks:
             print "TASK:", task.action
             print "BID:", task.priority
             print "EXECUTE BETWEEN " + datetime.fromtimestamp(task.start_after.to_sec(), tzlocal()).strftime('%d/%m/%y %H:%M:%S') + " AND " +  datetime.fromtimestamp(task.end_before.to_sec(), tzlocal()).strftime('%d/%m/%y %H:%M:%S')
