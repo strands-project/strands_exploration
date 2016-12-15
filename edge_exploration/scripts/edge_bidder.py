@@ -4,6 +4,7 @@ import rospy
 import numpy as np
 import pymongo
 import math
+from scipy.stats import norm
 import copy
 import datetime
 
