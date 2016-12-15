@@ -18,7 +18,7 @@ class SomaExploration():
         self.db = rospy.get_param('~db', 'message_store')
         self.mode = rospy.get_param('~mode', 'object_mini')
         self.collection = rospy.get_param('~collection', 'view_stats')
-        self.tag = rospy.get_param('~exploration_tag', 'Exploration')
+        self.tag = rospy.get_param('~mini_exploration_tag', 'MiniExploration')
         self.rescheduleInterval = rospy.get_param('~rescheduleInterval', 86400)
         self.taskDuration = rospy.get_param('~taskDuration', 1200)
         self.schedule_pub = rospy.Publisher('/object_schedule', ExplorationSchedule, queue_size=10)
