@@ -205,7 +205,7 @@ class SomaExploration():
         available = msg_store.query(ExplorationSchedule._type, query, {})
         
         
-        if len(available) != 1:
+        if len(available) < 1:
              succeded = False
              rospy.loginfo("No schedules were found!")
         else:

@@ -111,7 +111,7 @@ class SpatioTemporalBidder(object):
                               start_node_id=self.schedule_sorted[-1]['nodeID'],
                             end_node_id=self.schedule_sorted[-1]['nodeID'],
                             start_after=start_time,
-                            end_before=start_time + rospy.Duration(60*10),
+                            end_before=start_time + rospy.Duration(60*25),
                             max_duration=task_duration,
                             )
                      
@@ -120,7 +120,6 @@ class SpatioTemporalBidder(object):
                     else:
                         rois = get_object_search_dfn(self.schedule_sorted[-1]['nodeID'])
                         
-                    rois = get_object_search_dfn('ReceptionKitchen')
                     task_utils.add_string_argument(task, self.schedule_sorted[-1]['nodeID'])
                     task_utils.add_string_argument(task, rois[1])
                     task_utils.add_string_argument(task, rois[2])
