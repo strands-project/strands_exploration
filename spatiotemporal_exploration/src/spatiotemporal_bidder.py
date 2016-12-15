@@ -106,7 +106,7 @@ class SpatioTemporalBidder(object):
                 
                     rospy.loginfo("Adding task...")
                     start_time = rospy.Time(secs = self.schedule_sorted[-1]['timeInfo'], nsecs = 0)
-                    task_duration = rospy.Duration(secs = 60*15)                
+                    task_duration = rospy.Duration(secs = 60*12)                
                     task=Task(action= 'search_object',
                               start_node_id=self.schedule_sorted[-1]['nodeID'],
                             end_node_id=self.schedule_sorted[-1]['nodeID'],
