@@ -4,6 +4,7 @@
 import yaml
 import rospy
 import roslib
+import datetime
 from std_srvs.srv import Empty
 
 from activity_exploration.srv import ChangeMethodSrv
@@ -20,8 +21,13 @@ from region_observation.util import robot_view_cone, get_soma_info
 
 class ActivityRecommender(object):
 
-    def __init__(self):
+    def __init__(self, minimal_bidding=500):
         rospy.loginfo("Initiating activity exploration...")
+        self.visited_places = list()
+        self.current_date = datetime.datetime.fromtimestamp(
+            rospy.Time.now().secs
+        ).date()
+        self.minimal_bidding = minimal_bidding
         self.soma_config = rospy.get_param(
             "~soma_config", "activity_exploration"
         )
@@ -88,25 +94,37 @@ class ActivityRecommender(object):
         return ChangeMethodSrvResponse()
 
     def request_exploration(self, event):
-        self.budget_control.get_budget_alloc(self.region_wps.keys())
+        current_date = datetime.datetime.fromtimestamp(rospy.Time.now().secs).date()
+        if current_date > self.current_date:
+            self.current_date = current_date
+            self.visited_places = list()
+        self.budget_control.get_budget_alloc(self.region_wps.keys(), self.visited_places)
         for (start, roi, budget) in self.budget_control.budget_alloc:
             wp = self.region_wps[roi]
-            start_time = start - self.exploration_duration
-            end_time = start_time + self.exploration_duration + self.exploration_duration
-            duration = self.exploration_duration
-            task = Task(
-                action="record_skeletons", start_node_id=wp, end_node_id=wp,
-                start_after=start_time, end_before=end_time, max_duration=duration
-            )
-            task_utils.add_duration_argument(task, duration)
-            task_utils.add_string_argument(task, roi)
-            task_utils.add_string_argument(task, self.soma_config)
-            rospy.loginfo(
-                "Task to be requested: {wp:%s, roi:%s, start:%d, duration:%d, budget:%d" % (
-                    wp, roi, start_time.secs, duration.secs, int(budget)
+            if budget >= self.minimal_bidding:
+                start_time = start - self.exploration_duration
+                end_time = start_time + self.exploration_duration + self.exploration_duration
+                duration = self.exploration_duration
+                task = Task(
+                    action="record_skeletons", start_node_id=wp, end_node_id=wp,
+                    start_after=start_time, end_before=end_time, max_duration=duration
                 )
-            )
-            self.budget_control.bidder.add_task_bid(task, int(budget))
+                task_utils.add_duration_argument(task, duration)
+                task_utils.add_string_argument(task, roi)
+                task_utils.add_string_argument(task, self.soma_config)
+                rospy.loginfo(
+                    "Task to be requested: {wp:%s, roi:%s, start:%d, duration:%d, budget:%d}" % (
+                        wp, roi, start_time.secs, duration.secs, int(budget)
+                    )
+                )
+                self.budget_control.bidder.add_task_bid(task, int(budget))
+                self.visited_places.append((start, roi))
+            else:
+                rospy.loginfo(
+                    "Task: {wp:%s, roi:%s, start:%d, duration:%d, budget:%d} is dropped due to insufficient bidding budget" % (
+                        wp, roi, start_time.secs, duration.secs, int(budget)
+                    )
+                )
         rospy.loginfo("Finish adding tasks...")
 
     # def _check_visit_plan(self, start_time, end_time, visit_plan):
