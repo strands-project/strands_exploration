@@ -44,6 +44,7 @@ using namespace std;
 //scheduler parameters
 int taskDuration = 1200;
 int rescheduleInterval = 86400;
+string mode;
 
 //3D grid parameters
 double cellSize = 0.1;
@@ -441,11 +442,14 @@ int processSchedule(uint32_t givenTime)
                 schedule_msg.timeInfo.push_back(timeSlots[s]);
                 schedule_msg.nodeID.push_back(fremengridSet->fremengrid[nodes[s]]->id);
                 schedule_msg.entropy.push_back(node_entropies[s]);
+                schedule_msg.mode.push_back(mode);
+
             }
         }        
     }
 
     //publishes schedule
+    ROS_INFO("Publishing grids schedule!");
     schedule_pub.publish(schedule_msg);
 
     fclose(file);
@@ -689,6 +693,7 @@ int main(int argc,char* argv[])
     n.param("dimY", dimY, 100);
     n.param("dimZ", dimZ, 40);
     n.param("taskDuration", taskDuration, 1200);
+    n.param<std::string>("mode", mode, "object_full");
 
     if(sweep_type.compare("complete") == 0)
         sweep_measurements = 51;
