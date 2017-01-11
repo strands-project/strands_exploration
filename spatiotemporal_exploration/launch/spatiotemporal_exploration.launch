@@ -3,9 +3,11 @@
 	<arg name="grids_directory" default="/home/santos/spatiotemporal_exploration/3dmaps"/>
 	<arg name="sweep_type" default="complete"/>
 	<arg name="exploration_tag" default="Exploration"/>
+	<arg name="mini_exploration_tag" default="MiniExploration"/>
 	<arg name="bidder_timer" default="3600"/>
 	<arg name="with_defs_file" default="false"/>
-	<arg name="mode" default="object_full"/>
+	<arg name="mode_grids" default="object_full"/>
+	<arg name="mode_objects" default="object_mini"/>
 
 	<node name="exploration" pkg="spatiotemporal_exploration" type="spatiotemporal_exploration" output="screen">
 		<param name="exploration_tag" value="$(arg exploration_tag)"/> 
@@ -18,15 +20,16 @@
 		<param name="dimY" value="100"/>
 		<param name="dimZ" value="50"/>
 		<param name="grids_directory" value="$(arg grids_directory)"/>
+		<param name="mode" value="$(arg mode_grids)"/>
 	</node>
 
 	<node name="spatiotemporal_bidder" pkg="spatiotemporal_exploration" type="spatiotemporal_bidder.py" output="screen">
 		<param name="bidder_timer" value="$(arg bidder_timer)"/>
-		<param name="mode" value="$(arg mode)"/>
 	</node>
 
 	<node name="spatiotemporal_object" pkg="spatiotemporal_exploration" type="spatiotemporal_object.py" output="screen">
-                <param name="exploration_tag" value="$(arg exploration_tag)"/>
+                <param name="mini_exploration_tag" value="$(arg mini_exploration_tag)"/>
+		<param name="mode" value="$(arg mode_objects)"/>
         </node>
 
 	<node pkg="frongo" type="fremeniser.py" name="fremeniser2" respawn="true" unless="$(arg with_defs_file)"/>

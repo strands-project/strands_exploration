@@ -16,8 +16,9 @@ class SomaExploration():
     def __init__(self):
         
         self.db = rospy.get_param('~db', 'message_store')
+        self.mode = rospy.get_param('~mode', 'object_mini')
         self.collection = rospy.get_param('~collection', 'view_stats')
-        self.tag = rospy.get_param('~exploration_tag', 'Exploration')
+        self.tag = rospy.get_param('~mini_exploration_tag', 'MiniExploration')
         self.rescheduleInterval = rospy.get_param('~rescheduleInterval', 86400)
         self.taskDuration = rospy.get_param('~taskDuration', 1200)
         self.schedule_pub = rospy.Publisher('/object_schedule', ExplorationSchedule, queue_size=10)
@@ -157,6 +158,7 @@ class SomaExploration():
 
             new_schedule.entropy.append(time_slots[p]['entropies'][s])
             new_schedule.nodeID.append(time_slots[p]['waypoint'])
+            new_schedule.mode.append(self.mode)
             new_schedule.timeInfo.append(times[s])
             
         new_schedule.midnight = times[0]
@@ -203,7 +205,7 @@ class SomaExploration():
         available = msg_store.query(ExplorationSchedule._type, query, {})
         
         
-        if len(available) != 1:
+        if len(available) < 1:
              succeded = False
              rospy.loginfo("No schedules were found!")
         else:
@@ -217,7 +219,7 @@ class SomaExploration():
             load_schedule.entropy = available[0][0].entropy
             load_schedule.nodeID = available[0][0].nodeID
             load_schedule.midnight = available[0][0].midnight
-            load_schedule.action = available[0][0].action
+            load_schedule.mode = available[0][0].mode
             self.soma_schedule = load_schedule
 
     
