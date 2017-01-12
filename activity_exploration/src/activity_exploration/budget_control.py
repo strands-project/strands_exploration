@@ -234,8 +234,12 @@ class BudgetControl(object):
             )
             if recommended_rois != list():
                 estimate = [i for i in estimate if i[1] in recommended_rois]
+            if not len(estimate):
+                rospy.logwarn("The recommended places are not ones in the config file")
             if non_recommended_rois != list():
-                estimate = [i for i in estimate if [i[0], i[1]] not in non_recommended_rois]
+                estimate = [i for i in estimate if (i[0], i[1]) not in non_recommended_rois]
+            if not len(estimate):
+                rospy.loginfo("No new places need to be added.")
             if len(estimate):
                 estimates.append(estimate[0])
             start = start + self.observe_interval

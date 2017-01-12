@@ -112,17 +112,19 @@ class ActivityRecommender(object):
                 task_utils.add_duration_argument(task, duration)
                 task_utils.add_string_argument(task, roi)
                 task_utils.add_string_argument(task, self.soma_config)
+                readable_time = datetime.datetime.fromtimestamp(start_time.secs).time()
                 rospy.loginfo(
-                    "Task to be requested: {wp:%s, roi:%s, start:%d, duration:%d, budget:%d}" % (
-                        wp, roi, start_time.secs, duration.secs, int(budget)
+                    "Task to be requested: {wp:%s, roi:%s, start:%s, duration:%d, budget:%d}" % (
+                        wp, roi, readable_time, duration.secs, int(budget)
                     )
                 )
                 self.budget_control.bidder.add_task_bid(task, int(budget))
                 self.visited_places.append((start, roi))
             else:
+                readable_time = datetime.datetime.fromtimestamp(start_time.secs).time()
                 rospy.loginfo(
-                    "Task: {wp:%s, roi:%s, start:%d, duration:%d, budget:%d} is dropped due to insufficient bidding budget" % (
-                        wp, roi, start_time.secs, duration.secs, int(budget)
+                    "Task: {wp:%s, roi:%s, start:%s, duration:%d, budget:%d} is dropped due to insufficient bidding budget" % (
+                        wp, roi, readable_time, duration.secs, int(budget)
                     )
                 )
         rospy.loginfo("Finish adding tasks...")
