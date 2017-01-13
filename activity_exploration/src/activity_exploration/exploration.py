@@ -101,10 +101,10 @@ class ActivityRecommender(object):
         self.budget_control.get_budget_alloc(self.region_wps.keys(), self.visited_places)
         for (start, roi, budget) in self.budget_control.budget_alloc:
             wp = self.region_wps[roi]
-            start_time = start - self.exploration_duration
+            start_time = start - self.exploration_duration - self.exploration_duration
             duration = self.exploration_duration
             if budget >= self.minimal_bidding:
-                end_time = start + self.exploration_duration
+                end_time = start + self.exploration_duration + self.exploration_duration + self.exploration_duration
                 task = Task(
                     action="record_skeletons", start_node_id=wp, end_node_id=wp,
                     start_after=start_time, end_before=end_time, max_duration=duration
