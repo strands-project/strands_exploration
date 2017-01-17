@@ -20,7 +20,7 @@ class BudgetControl(object):
 
     def __init__(
         self, start_time=(8, 0), end_time=(18, 0),
-        observe_interval=rospy.Duration(1800)
+        observe_interval=rospy.Duration(1800), minimal_required_budget=500
     ):
         rospy.loginfo("Initiating budgetting control...")
         # hand-allocated budget (between 8am to 6pm)
@@ -29,6 +29,7 @@ class BudgetControl(object):
         self._end_time = datetime.time(end_time[0], end_time[1])
         self.budget_alloc = list()
         self.available_budget = 0
+        self.minimal_required_budget = minimal_required_budget
         tmp = datetime.datetime.fromtimestamp(rospy.Time.now().secs)
         self._update_budget_date = datetime.datetime(
             tmp.year, tmp.month, tmp.day, 0, 0
@@ -153,23 +154,6 @@ class BudgetControl(object):
                 result.append((xtime, people_roi, people_est, "people"))
         result = sorted(result, key=lambda i: i[2], reverse=True)
         result = result[:size]
-        # if len(result):
-        #     # store options to db
-        #     msg = ExplorationChoice()
-        #     msg.soma_config = self.soma_config
-        #     for i in result:
-        #         msg.start_times.append(i[0])
-        #         msg.region_ids.append(i[1])
-        #         msg.estimates.append(i[2])
-        #         msg.contributing_models.append(i[3])
-        #     self._db.insert(msg)
-        #     # normalize estimate
-        #     norm = sum(zip(*result)[2])
-        #     if norm > 0.0:
-        #         result = [(i[0], i[1], i[2]/norm) for i in result]
-        #     else:
-        #         length = len(result)
-        #         result = [(i[0], i[1], 1/length) for i in result]
         return result
 
     def get_budget_alloc(self, recommended_rois=[], non_recommended_rois=[]):
@@ -254,17 +238,18 @@ class BudgetControl(object):
         self.budget_alloc = [
             (
                 i[0], i[1], i[2]*total_budget
-            ) for i in norms if int(i[2]*total_budget) > 0
+            ) for i in norms if int(i[2]*total_budget) >= self.minimal_required_budget
         ]
         if len(self.budget_alloc):
             # store options to db
             msg = ExplorationChoice()
             msg.soma_config = self.soma_config
             for i in estimates:
-                msg.start_times.append(i[0])
-                msg.region_ids.append(i[1])
-                msg.estimates.append(i[2])
-                msg.contributing_models.append(i[3])
+                if i[0] in zip(*self.budget_alloc)[0]:
+                    msg.start_times.append(i[0])
+                    msg.region_ids.append(i[1])
+                    msg.estimates.append(i[2])
+                    msg.contributing_models.append(i[3])
             self._db.insert(msg)
         self.available_budget = total_budget
         rospy.loginfo("Budget allocation: %s" % str(self.budget_alloc))

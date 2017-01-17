@@ -39,7 +39,9 @@ class ActivityRecommender(object):
             rospy.get_param("~exploration_duration", "600")
         )
         observe_interval = rospy.Duration(self.exploration_duration.secs*3)
-        self.budget_control = BudgetControl(observe_interval=observe_interval)
+        self.budget_control = BudgetControl(
+            observe_interval=observe_interval, self.minimal_bidding
+        )
         # all services to counters
         people_srv_name = rospy.get_param(
             "~people_srv", "/people_counter/people_best_time_estimate"
@@ -128,31 +130,6 @@ class ActivityRecommender(object):
                     )
                 )
         rospy.loginfo("Finish adding tasks...")
-
-    # def _check_visit_plan(self, start_time, end_time, visit_plan):
-    #     scales = self.people_srv(start_time, end_time, False, True)
-    #     scale_plan = list()
-    #     for ind, scale in enumerate(scales.estimates):
-    #         scale_plan.append((scale, scales.region_ids[ind]))
-    #     if len(scale_plan) != 0:
-    #         scale_plan = sorted(scale_plan, key=lambda i: i[0], reverse=True)
-    #         lower_threshold = scale_plan[0][0] - (self.epsilon * scale_plan[0][0])
-    #         high_visit = list()
-    #         for total_scale, roi in scale_plan:
-    #             if total_scale <= scale_plan[0][0] and total_scale >= lower_threshold:
-    #                 high_visit.append(roi)
-    #         p = len(high_visit) / float(len(scales.estimates))
-    #         scale_plan = sorted(scale_plan, key=lambda i: i[0])
-    #         if random.random() > p:
-    #             rospy.loginfo("Changing WayPoints to visit unobserved places...")
-    #             new_visit_plan = list()
-    #             for i in scale_plan:
-    #                 for j in visit_plan:
-    #                     if i[1] == j[1]:
-    #                         new_visit_plan.append(j)
-    #                         break
-    #             visit_plan = new_visit_plan
-    #     return visit_plan
 
     def _topo_map_cb(self, topo_map):
         self.topo_map = topo_map
