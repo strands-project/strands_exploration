@@ -19,7 +19,7 @@ from activity_temporal_patterns.srv import ActivityBestTimeEstimateSrvResponse
 class BudgetControl(object):
 
     def __init__(
-        self, start_time=(8, 0), end_time=(18, 0),
+        self, start_time=(8, 0), end_time=(17, 0),
         observe_interval=rospy.Duration(1800), minimal_required_budget=500
     ):
         rospy.loginfo("Initiating budgetting control...")
