@@ -19,8 +19,8 @@ from activity_temporal_patterns.srv import ActivityBestTimeEstimateSrvResponse
 class BudgetControl(object):
 
     def __init__(
-        self, start_time=(8, 0), end_time=(17, 0),
-        observe_interval=rospy.Duration(1800), minimal_required_budget=500
+        self, start_time=(9, 0), end_time=(17, 0),
+        observe_interval=rospy.Duration(2400), minimal_required_budget=500
     ):
         rospy.loginfo("Initiating budgetting control...")
         # hand-allocated budget (between 8am to 6pm)
@@ -206,6 +206,36 @@ class BudgetControl(object):
         else:
             rospy.loginfo("No budget available, skipping process..")
 
+    def _calculate_budget_alloc(self, estimates, total_budget):
+        if len(estimates):
+            # normalize estimate
+            norm = sum(zip(*estimates)[2])
+            if norm > 0.0:
+                proposed_budget_alloc = [
+                    (
+                        i[0], i[1], i[2]
+                    ) for i in estimates if int(
+                        (i[2]/norm)*total_budget
+                    ) >= self.minimal_required_budget
+                ]
+                norm = sum(zip(*proposed_budget_alloc)[2])
+            elif int(
+                (1 / float(len(estimates))) * total_budget
+            ) >= self.minimal_required_budget:
+                norm = float(len(estimates))
+                proposed_budget_alloc = [(i[0], i[1], 1) for i in estimates]
+            else:
+                estimates = estimates[:len(estimates)/2]
+                norm = float(len(estimates))
+                proposed_budget_alloc = [(i[0], i[1], 1) for i in estimates]
+            self.budget_alloc = [
+                (
+                    i[0], i[1], int((i[2]/norm)*total_budget)
+                ) for i in proposed_budget_alloc
+            ]
+        else:
+            self.budget_alloc = list()
+
     def _get_budget_alloc(
         self, start, end, total_budget, recommended_rois=[], non_recommended_rois=[]
     ):
@@ -227,19 +257,7 @@ class BudgetControl(object):
             if len(estimate):
                 estimates.append(estimate[0])
             start = start + self.observe_interval
-        if len(estimates):
-            # normalize estimate
-            norm = sum(zip(*estimates)[2])
-            if norm > 0.0:
-                norms = [(i[0], i[1], i[2]/norm) for i in estimates]
-            else:
-                length = len(estimates)
-                norms = [(i[0], i[1], 1/length) for i in estimates]
-        self.budget_alloc = [
-            (
-                i[0], i[1], i[2]*total_budget
-            ) for i in norms if int(i[2]*total_budget) >= self.minimal_required_budget
-        ]
+        self._calculate_budget_alloc(estimates, total_budget)
         if len(self.budget_alloc):
             # store options to db
             msg = ExplorationChoice()
