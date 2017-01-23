@@ -9,6 +9,7 @@ from strands_exploration_msgs.msg import ExplorationSchedule
 from strands_executive_msgs import task_utils
 from tsc_routine.object_search_dfns import *
 from tsc_routine.object_search_dfns_quasimodo import *
+import random
 
 class SpatioTemporalBidder(object):
 
@@ -21,9 +22,10 @@ class SpatioTemporalBidder(object):
         self.rescheduleInterval = rospy.get_param('~rescheduleInterval', 86400)
         self.slot_duration = 0;
         self.num_slots = 0;
+        self.last_bid = 0;
         
-        #every 1 hour checks budget and bids
-        rospy.Timer(rospy.Duration(self.bidder_timer), self.add_task)
+        #every 5 min check current time slot
+        rospy.Timer(rospy.Duration(60*5), self.add_task)
         rospy.Subscriber("/exploration_schedule", ExplorationSchedule, self.schedule_grids_listener)
         rospy.Subscriber("/object_schedule", ExplorationSchedule, self.schedule_objects_listener)
         
@@ -76,70 +78,66 @@ class SpatioTemporalBidder(object):
                 rospy.loginfo("Received schedules for both explorations.")
                 
                 self.slot_duration = self.grids_schedule.timeInfo[2] - self.grids_schedule.timeInfo[1]
-                rospy.loginfo("Time slot duration: %d", self.slot_duration)
+                #rospy.loginfo("Time slot duration: %d", self.slot_duration)
 
                 #get current time slot:            
-                nextSlot = self.getCurrentTimeSlot(self.slot_duration) + 1
-                lookAhead = self.bidder_timer/self.slot_duration
-            
-                maxSlot = nextSlot + lookAhead
-
-                if maxSlot - nextSlot > 1:        
-                    #print "sorting schedules..."
-                    self.schedule_sorted = []
-                    #reorder slots based on the entropy for each 2h interval
-                    for i in range(nextSlot, maxSlot):
-                        e=dict()
+                currentSlot = self.getCurrentTimeSlot(self.slot_duration)
+                
+                rospy.loginfo("Time slot: %d/%d", currentSlot, self.num_slots)
+                task_duration = rospy.Duration(secs = 60*10)
+                
+                if currentSlot is not self.last_bid:
+                    if self.num_slots - currentSlot > 2:
+                        rospy.loginfo("Adding task...")
                         
-                        if self.grids_schedule.entropy[i] >= self.objects_schedule.entropy[i]:
-                            e['nodeID']=self.grids_schedule.nodeID[i]
-                            e['entropy']=self.grids_schedule.entropy[i]
-                            e['mode']=self.grids_schedule.mode[i]
+                        #choose between full and mini:
+                        if random.randint(0,2) == 0:
+                            #start_time = rospy.Time(secs = self.grids_schedule[currentSlot+1]['timeInfo'], nsecs = 0)
+                            start_time = rospy.Time(secs = self.grids_schedule.timeInfo[currentSlot+1], nsecs = 0)
+                            node_observation = self.grids_schedule.nodeID[currentSlot+1]
+                            mode = self.grids_schedule.mode[currentSlot+1]
                         else:
-                            e['nodeID']=self.objects_schedule.nodeID[i]
-                            e['entropy']=self.objects_schedule.entropy[i]
-                            e['mode']=self.objects_schedule.mode[i]
-                        e['timeInfo']=self.grids_schedule.timeInfo[i]
-                        self.schedule_sorted.append(e)
-                    
-                    self.schedule_sorted = sorted(self.schedule_sorted, key=lambda k:k['entropy'])
-                
-                    rospy.loginfo("Adding task...")
-                    start_time = rospy.Time(secs = self.schedule_sorted[-1]['timeInfo'], nsecs = 0)
-                    task_duration = rospy.Duration(secs = 60*12)                
-                    task=Task(action= 'search_object',
-                              start_node_id=self.schedule_sorted[-1]['nodeID'],
-                            end_node_id=self.schedule_sorted[-1]['nodeID'],
-                            start_after=start_time,
-                            end_before=start_time + rospy.Duration(60*25),
-                            max_duration=task_duration,
-                            )
-                     
-                    if self.schedule_sorted[-1]['mode'] == 'object_full':
-                        rois = get_object_search_dfn_quasimodo(self.schedule_sorted[-1]['nodeID'])
-                    else:
-                        rois = get_object_search_dfn(self.schedule_sorted[-1]['nodeID'])
+                            start_time = rospy.Time(secs = self.objects_schedule.timeInfo[currentSlot+1], nsecs = 0)
+                            node_observation = self.objects_schedule.nodeID[currentSlot+1]
+                            mode = self.objects_schedule.mode[currentSlot+1]
                         
-                    task_utils.add_string_argument(task, self.schedule_sorted[-1]['nodeID'])
-                    task_utils.add_string_argument(task, rois[1])
-                    task_utils.add_string_argument(task, rois[2])
-                    task_utils.add_string_argument(task, self.schedule_sorted[-1]['mode'])
-                                        
-                    bidRatio = (self.num_slots - nextSlot)/(self.bidder_timer/self.slot_duration)
-                    bid = int(ceil((self.bidder.available_tokens - self.bidder.currently_bid_tokens)/bidRatio))
-                
+                        #add task:          
+                        task=Task(action= 'search_object',
+                                start_node_id=node_observation,
+                                end_node_id=node_observation,
+                                start_after=start_time,
+                                end_before=start_time + rospy.Duration(60*15),
+                                max_duration=task_duration,
+                                )
+                         
+                        if mode == 'object_full':
+                            rois = get_object_search_dfn_quasimodo(node)
+                        else:
+                            rois = get_object_search_dfn(node)
+                            
+                        task_utils.add_string_argument(task, node_observation)
+                        task_utils.add_string_argument(task, rois[1])
+                        task_utils.add_string_argument(task, rois[1])
+                        task_utils.add_string_argument(task, mode)
+                                            
+                        
+                        bidRatio = self.num_slots - currentSlot
+                        bid = int(ceil((self.bidder.available_tokens - self.bidder.currently_bid_tokens)/bidRatio))
+    
+                        if bid > 0:
+                            rospy.loginfo("Bidder: Bid Amount: %d -- Node: %s -- Start Time: %d -- Mode: %s -- Roi: %s -- Surface: %s",bid,
+                                          node_observation,
+                                        start_time.secs, mode, rois[1], rois[2]) 
 
-                
-                    if bid > 0:
-                        rospy.loginfo("Bidder: Bid Amount: %d -- Node: %s -- Time: %d -- Mode: %s -- Start Time: %d -- Roi: %s -- Surface: %s",bid,
-                                      self.schedule_sorted[-1]['nodeID'],
-                                    self.schedule_sorted[-1]['timeInfo'], self.schedule_sorted[-1]['mode'],
-                                    start_time.secs, rois[1],rois[2]) 
-                        self.bidder.add_task_bid(task, bid)
+                            self.bidder.add_task_bid(task, bid)
+                            self.last_bid = currentSlot
+                        else:
+                            rospy.loginfo("Bidder: Bid value to low to add task!")
+                            rospy.loginfo("Bidder: Current budget: %d", self.bidder.available_tokens)
                     else:
-                        rospy.loginfo("Bidder: Bid value to low to add task!")
-                        rospy.loginfo("Bidder: Current budget: %d", self.bidder.available_tokens)
-                        
+                        rospy.loginfo("Last slot of the day, waiting for midnight!")
+        
+ 
             else:
                rospy.loginfo("Bidder: Waiting for both schedules (3D changes and SOMA...)") 
         
