@@ -20,7 +20,7 @@ class BudgetControl(object):
 
     def __init__(
         self, start_time=(9, 0), end_time=(17, 0),
-        observe_interval=rospy.Duration(2400), minimal_required_budget=500
+        observe_interval=rospy.Duration(1800), minimal_required_budget=500
     ):
         rospy.loginfo("Initiating budgetting control...")
         # hand-allocated budget (between 8am to 6pm)
@@ -218,7 +218,10 @@ class BudgetControl(object):
                         (i[2]/norm)*total_budget
                     ) >= self.minimal_required_budget
                 ]
-                norm = sum(zip(*proposed_budget_alloc)[2])
+                if len(proposed_budget_alloc):
+                    norm = sum(zip(*proposed_budget_alloc)[2])
+                else:
+                    rospy.logwarn("Allocated budget does not meet the minimal required budget")
             elif int(
                 (1 / float(len(estimates))) * total_budget
             ) >= self.minimal_required_budget:
