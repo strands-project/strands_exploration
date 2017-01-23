@@ -111,9 +111,9 @@ class SpatioTemporalBidder(object):
                                 )
                          
                         if mode == 'object_full':
-                            rois = get_object_search_dfn_quasimodo(node)
+                            rois = get_object_search_dfn_quasimodo(node_observation)
                         else:
-                            rois = get_object_search_dfn(node)
+                            rois = get_object_search_dfn(node_observation)
                             
                         task_utils.add_string_argument(task, node_observation)
                         task_utils.add_string_argument(task, rois[1])
