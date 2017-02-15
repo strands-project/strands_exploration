@@ -686,6 +686,8 @@ int main(int argc,char* argv[])
     n.param<std::string>("sweep_type", sweep_type, "complete");
     n.param<std::string>("schedule_directory", scheduleDirectory, "/localhome/strands/schedules");
     n.param<std::string>("grids_directory", gridsDirectory, "/localhome/strands/3dmaps");
+    if (system(("mkdir -p "+scheduleDirectory).c_str())!=0){ ROS_ERROR("Could not create directory to store schedules."); return -1;}
+    if (system(("mkdir -p "+gridsDirectory).c_str())!=0){ROS_ERROR("Could not create directory to store grids."); return -1;}
     n.param<std::string>("exploration_tag", exploration_tag, "Exploration");
     n.param("verbose", debug,false);
     n.param("resolution", cellSize, 0.1);
