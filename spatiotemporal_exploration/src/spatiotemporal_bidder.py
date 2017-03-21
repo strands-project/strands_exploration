@@ -115,25 +115,29 @@ class SpatioTemporalBidder(object):
                         else:
                             rois = get_object_search_dfn(node_observation)
                             
-                        task_utils.add_string_argument(task, node_observation)
-                        task_utils.add_string_argument(task, rois[1])
-                        task_utils.add_string_argument(task, rois[1])
-                        task_utils.add_string_argument(task, mode)
-                                            
-                        
-                        bidRatio = self.num_slots - currentSlot
-                        bid = int(ceil((self.bidder.available_tokens - self.bidder.currently_bid_tokens)/bidRatio))
-    
-                        if bid > 0:
-                            rospy.loginfo("Bidder: Bid Amount: %d -- Node: %s -- Start Time: %d -- Mode: %s -- Roi: %s -- Surface: %s",bid,
-                                          node_observation,
-                                        start_time.secs, mode, rois[1], rois[2]) 
-
-                            self.bidder.add_task_bid(task, bid)
-                            self.last_bid = currentSlot
+                        if rois == None:
+                            rospy.loginfo("waypoint not found in routine file")
                         else:
-                            rospy.loginfo("Bidder: Bid value to low to add task!")
-                            rospy.loginfo("Bidder: Current budget: %d", self.bidder.available_tokens)
+                                
+                            task_utils.add_string_argument(task, node_observation)
+                            task_utils.add_string_argument(task, rois[1])
+                            task_utils.add_string_argument(task, rois[1])
+                            task_utils.add_string_argument(task, mode)
+                                                
+                            
+                            bidRatio = self.num_slots - currentSlot
+                            bid = int(ceil((self.bidder.available_tokens - self.bidder.currently_bid_tokens)/bidRatio))
+        
+                            if bid > 0:
+                                rospy.loginfo("Bidder: Bid Amount: %d -- Node: %s -- Start Time: %d -- Mode: %s -- Roi: %s -- Surface: %s",bid,
+                                              node_observation,
+                                            start_time.secs, mode, rois[1], rois[2]) 
+    
+                                self.bidder.add_task_bid(task, bid)
+                                self.last_bid = currentSlot
+                            else:
+                                rospy.loginfo("Bidder: Bid value to low to add task!")
+                                rospy.loginfo("Bidder: Current budget: %d", self.bidder.available_tokens)
                     else:
                         rospy.loginfo("Last slot of the day, waiting for midnight!")
         
