@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>popp_exploration</name>
+  <version>1.0.0</version>
+  <description>The popp_exploration package</description>
+
+  <maintainer email="fxj345@cs.bham.ac.uk">Ferdian Jovan</maintainer>
+
+  <license>MIT</license>
+
+  <author email="fxj345@cs.bham.ac.uk">Ferdian Jovan</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>exploration_bid_manager</build_depend>
+  <build_depend>mongodb_store</build_depend>
+  <build_depend>multi_detect_temporal_patterns</build_depend>
+  <build_depend>region_observation</build_depend>
+  <build_depend>rospy</build_depend>
+  <build_depend>strands_executive_msgs</build_depend>
+  <build_depend>strands_navigation_msgs</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_export_depend>exploration_bid_manager</build_export_depend>
+  <build_export_depend>mongodb_store</build_export_depend>
+  <build_export_depend>multi_detect_temporal_patterns</build_export_depend>
+  <build_export_depend>region_observation</build_export_depend>
+  <build_export_depend>rospy</build_export_depend>
+  <build_export_depend>strands_executive_msgs</build_export_depend>
+  <build_export_depend>strands_navigation_msgs</build_export_depend>
+  <build_export_depend>std_msgs</build_export_depend>
+  <exec_depend>exploration_bid_manager</exec_depend>
+  <exec_depend>mongodb_store</exec_depend>
+  <exec_depend>multi_detect_temporal_patterns</exec_depend>
+  <exec_depend>region_observation</exec_depend>
+  <exec_depend>rospy</exec_depend>
+  <exec_depend>strands_executive_msgs</exec_depend>
+  <exec_depend>strands_navigation_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+
+  <export>
+  </export>
+</package>

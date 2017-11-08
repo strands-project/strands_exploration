@@ -1,0 +1,16 @@
+<launch>
+    <arg name="soma_config"/>
+    <arg name="exploration_duration" default="600"/>
+    <arg name="exploration_request_interval" default="600"/>
+
+    <arg name="machine" default="localhost" />
+    <arg name="user" default="" />
+
+    <machine name="$(arg machine)" address="$(arg machine)" env-loader="$(optenv ROS_ENV_LOADER )" user="$(arg user)" default="true"/>
+
+    <node pkg="popp_exploration" type="exploration.py" name="arms" output="screen" respawn="false">
+        <param name="soma_config" value="$(arg soma_config)" type="string"/>
+        <param name="exploration_duration" value="$(arg exploration_duration)" type="int"/>
+        <param name="exploration_request_interval" value="$(arg exploration_request_interval)" type="int"/>
+    </node>
+</launch>
