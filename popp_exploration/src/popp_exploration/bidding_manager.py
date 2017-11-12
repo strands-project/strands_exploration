@@ -84,13 +84,12 @@ class BiddingManager(object):
                     available_tokens, str(start)
                 )
             )
-            # end = datetime.datetime(
-            #     start.year, start.month, start.day,
-            #     self._end_time.hour, self._end_time.minute
-            # )
+            end = datetime.datetime(
+                start.year, start.month, start.day,
+                self._end_time.hour, self._end_time.minute
+            )
             start = rospy.Time(time.mktime(start.timetuple()))
-            # end = rospy.Time(time.mktime(end.timetuple()))
-            end = rospy.Time(start.secs + (2*self.exploration_interval.secs))
+            end = rospy.Time(time.mktime(end.timetuple()))
             self._calculate_bidding_plan(
                 start, end, available_tokens, recommended_regions, time_visited_regions
             )
