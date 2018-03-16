@@ -19,8 +19,8 @@ from activity_temporal_patterns.srv import ActivityBestTimeEstimateSrvResponse
 class BudgetControl(object):
 
     def __init__(
-        self, start_time=(8, 0), end_time=(18, 0),
-        observe_interval=rospy.Duration(1800)
+        self, start_time=(9, 0), end_time=(17, 0),
+        observe_interval=rospy.Duration(1800), minimal_required_budget=500
     ):
         rospy.loginfo("Initiating budgetting control...")
         # hand-allocated budget (between 8am to 6pm)
@@ -29,6 +29,7 @@ class BudgetControl(object):
         self._end_time = datetime.time(end_time[0], end_time[1])
         self.budget_alloc = list()
         self.available_budget = 0
+        self.minimal_required_budget = minimal_required_budget
         tmp = datetime.datetime.fromtimestamp(rospy.Time.now().secs)
         self._update_budget_date = datetime.datetime(
             tmp.year, tmp.month, tmp.day, 0, 0
@@ -153,26 +154,9 @@ class BudgetControl(object):
                 result.append((xtime, people_roi, people_est, "people"))
         result = sorted(result, key=lambda i: i[2], reverse=True)
         result = result[:size]
-        # if len(result):
-        #     # store options to db
-        #     msg = ExplorationChoice()
-        #     msg.soma_config = self.soma_config
-        #     for i in result:
-        #         msg.start_times.append(i[0])
-        #         msg.region_ids.append(i[1])
-        #         msg.estimates.append(i[2])
-        #         msg.contributing_models.append(i[3])
-        #     self._db.insert(msg)
-        #     # normalize estimate
-        #     norm = sum(zip(*result)[2])
-        #     if norm > 0.0:
-        #         result = [(i[0], i[1], i[2]/norm) for i in result]
-        #     else:
-        #         length = len(result)
-        #         result = [(i[0], i[1], 1/length) for i in result]
         return result
 
-    def get_budget_alloc(self, recommended_rois=list()):
+    def get_budget_alloc(self, recommended_rois=[], non_recommended_rois=[]):
         tmp = datetime.datetime.fromtimestamp(rospy.Time.now().secs)
         current_time = datetime.datetime(tmp.year, tmp.month, tmp.day, 0, 0)
         total_budget = self.bidder.available_tokens - self.bidder.currently_bid_tokens
@@ -192,7 +176,9 @@ class BudgetControl(object):
             )
             start = rospy.Time(time.mktime(start.timetuple()))
             end = rospy.Time(time.mktime(end.timetuple()))
-            self._get_budget_alloc(start, end, total_budget, recommended_rois)
+            self._get_budget_alloc(
+                start, end, total_budget, recommended_rois, non_recommended_rois
+            )
             self._update_budget_date = current_time
         elif total_budget:
             tmp = datetime.datetime.fromtimestamp(rospy.Time.now().secs)
@@ -214,11 +200,48 @@ class BudgetControl(object):
             )
             start = rospy.Time(time.mktime(start.timetuple()))
             end = rospy.Time(time.mktime(end.timetuple()))
-            self._get_budget_alloc(start, end, total_budget, recommended_rois)
+            self._get_budget_alloc(
+                start, end, total_budget, recommended_rois, non_recommended_rois
+            )
         else:
             rospy.loginfo("No budget available, skipping process..")
 
-    def _get_budget_alloc(self, start, end, total_budget, recommended_rois=[]):
+    def _calculate_budget_alloc(self, estimates, total_budget):
+        if len(estimates):
+            # normalize estimate
+            norm = sum(zip(*estimates)[2])
+            if norm > 0.0:
+                proposed_budget_alloc = [
+                    (
+                        i[0], i[1], i[2]
+                    ) for i in estimates if int(
+                        (i[2]/norm)*total_budget
+                    ) >= self.minimal_required_budget
+                ]
+                if len(proposed_budget_alloc):
+                    norm = sum(zip(*proposed_budget_alloc)[2])
+                else:
+                    rospy.logwarn("Allocated budget does not meet the minimal required budget")
+            elif int(
+                (1 / float(len(estimates))) * total_budget
+            ) >= self.minimal_required_budget:
+                norm = float(len(estimates))
+                proposed_budget_alloc = [(i[0], i[1], 1) for i in estimates]
+            else:
+                estimates = estimates[:len(estimates)/2]
+                norm = float(len(estimates))
+                proposed_budget_alloc = [(i[0], i[1], 1) for i in estimates]
+            self.budget_alloc = [
+                (
+                    i[0], i[1], int((i[2]/norm)*total_budget)
+                ) for i in proposed_budget_alloc
+            ]
+        else:
+            self.budget_alloc = list()
+
+    def _get_budget_alloc(
+        self, start, end, total_budget, recommended_rois=[], non_recommended_rois=[]
+    ):
         rospy.loginfo("Available budget: %d" % total_budget)
         norms = list()
         estimates = list()
@@ -228,31 +251,26 @@ class BudgetControl(object):
             )
             if recommended_rois != list():
                 estimate = [i for i in estimate if i[1] in recommended_rois]
+            if not len(estimate):
+                rospy.logwarn("The recommended places are not ones in the config file")
+            if non_recommended_rois != list():
+                estimate = [i for i in estimate if (i[0], i[1]) not in non_recommended_rois]
+            if not len(estimate):
+                rospy.loginfo("No new places need to be added.")
             if len(estimate):
                 estimates.append(estimate[0])
             start = start + self.observe_interval
-        if len(estimates):
-            # normalize estimate
-            norm = sum(zip(*estimates)[2])
-            if norm > 0.0:
-                norms = [(i[0], i[1], i[2]/norm) for i in estimates]
-            else:
-                length = len(estimates)
-                norms = [(i[0], i[1], 1/length) for i in estimates]
-        self.budget_alloc = [
-            (
-                i[0], i[1], i[2]*total_budget
-            ) for i in norms if int(i[2]*total_budget) > 0
-        ]
+        self._calculate_budget_alloc(estimates, total_budget)
         if len(self.budget_alloc):
             # store options to db
             msg = ExplorationChoice()
             msg.soma_config = self.soma_config
             for i in estimates:
-                msg.start_times.append(i[0])
-                msg.region_ids.append(i[1])
-                msg.estimates.append(i[2])
-                msg.contributing_models.append(i[3])
+                if i[0] in zip(*self.budget_alloc)[0]:
+                    msg.start_times.append(i[0])
+                    msg.region_ids.append(i[1])
+                    msg.estimates.append(i[2])
+                    msg.contributing_models.append(i[3])
             self._db.insert(msg)
         self.available_budget = total_budget
         rospy.loginfo("Budget allocation: %s" % str(self.budget_alloc))

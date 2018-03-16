@@ -4,6 +4,7 @@
 import yaml
 import rospy
 import roslib
+import datetime
 from std_srvs.srv import Empty
 
 from activity_exploration.srv import ChangeMethodSrv
@@ -20,8 +21,13 @@ from region_observation.util import robot_view_cone, get_soma_info
 
 class ActivityRecommender(object):
 
-    def __init__(self):
+    def __init__(self, minimal_bidding=500):
         rospy.loginfo("Initiating activity exploration...")
+        self.visited_places = list()
+        self.current_date = datetime.datetime.fromtimestamp(
+            rospy.Time.now().secs
+        ).date()
+        self.minimal_bidding = minimal_bidding
         self.soma_config = rospy.get_param(
             "~soma_config", "activity_exploration"
         )
@@ -33,7 +39,10 @@ class ActivityRecommender(object):
             rospy.get_param("~exploration_duration", "600")
         )
         observe_interval = rospy.Duration(self.exploration_duration.secs*3)
-        self.budget_control = BudgetControl(observe_interval=observe_interval)
+        self.budget_control = BudgetControl(
+            observe_interval=observe_interval,
+            minimal_required_budget=self.minimal_bidding
+        )
         # all services to counters
         people_srv_name = rospy.get_param(
             "~people_srv", "/people_counter/people_best_time_estimate"
@@ -88,51 +97,42 @@ class ActivityRecommender(object):
         return ChangeMethodSrvResponse()
 
     def request_exploration(self, event):
-        self.budget_control.get_budget_alloc(self.region_wps.keys())
+        current_date = datetime.datetime.fromtimestamp(rospy.Time.now().secs).date()
+        if current_date > self.current_date:
+            self.current_date = current_date
+            self.visited_places = list()
+        self.budget_control.get_budget_alloc(self.region_wps.keys(), self.visited_places)
         for (start, roi, budget) in self.budget_control.budget_alloc:
             wp = self.region_wps[roi]
+            # start_time = start - self.exploration_duration - self.exploration_duration
             start_time = start - self.exploration_duration
-            end_time = start_time + self.exploration_duration + self.exploration_duration
             duration = self.exploration_duration
-            task = Task(
-                action="record_skeletons", start_node_id=wp, end_node_id=wp,
-                start_after=start_time, end_before=end_time, max_duration=duration
-            )
-            task_utils.add_duration_argument(task, duration)
-            task_utils.add_string_argument(task, roi)
-            task_utils.add_string_argument(task, self.soma_config)
-            rospy.loginfo(
-                "Task to be requested: {wp:%s, roi:%s, start:%d, duration:%d, budget:%d" % (
-                    wp, roi, start_time.secs, duration.secs, int(budget)
+            if budget >= self.minimal_bidding:
+                # end_time = start + self.exploration_duration + self.exploration_duration + self.exploration_duration
+                end_time = start + self.exploration_duration + self.exploration_duration
+                task = Task(
+                    action="record_skeletons", start_node_id=wp, end_node_id=wp,
+                    start_after=start_time, end_before=end_time, max_duration=duration
                 )
-            )
-            self.budget_control.bidder.add_task_bid(task, int(budget))
+                task_utils.add_duration_argument(task, duration)
+                task_utils.add_string_argument(task, roi)
+                task_utils.add_string_argument(task, self.soma_config)
+                readable_time = datetime.datetime.fromtimestamp(start_time.secs).time()
+                rospy.loginfo(
+                    "Task to be requested: {wp:%s, roi:%s, start:%s, duration:%d, budget:%d}" % (
+                        wp, roi, readable_time, duration.secs, int(budget)
+                    )
+                )
+                self.budget_control.bidder.add_task_bid(task, int(budget))
+                self.visited_places.append((start, roi))
+            else:
+                readable_time = datetime.datetime.fromtimestamp(start_time.secs).time()
+                rospy.loginfo(
+                    "Task: {wp:%s, roi:%s, start:%s, duration:%d, budget:%d} is dropped due to insufficient bidding budget" % (
+                        wp, roi, readable_time, duration.secs, int(budget)
+                    )
+                )
         rospy.loginfo("Finish adding tasks...")
-
-    # def _check_visit_plan(self, start_time, end_time, visit_plan):
-    #     scales = self.people_srv(start_time, end_time, False, True)
-    #     scale_plan = list()
-    #     for ind, scale in enumerate(scales.estimates):
-    #         scale_plan.append((scale, scales.region_ids[ind]))
-    #     if len(scale_plan) != 0:
-    #         scale_plan = sorted(scale_plan, key=lambda i: i[0], reverse=True)
-    #         lower_threshold = scale_plan[0][0] - (self.epsilon * scale_plan[0][0])
-    #         high_visit = list()
-    #         for total_scale, roi in scale_plan:
-    #             if total_scale <= scale_plan[0][0] and total_scale >= lower_threshold:
-    #                 high_visit.append(roi)
-    #         p = len(high_visit) / float(len(scales.estimates))
-    #         scale_plan = sorted(scale_plan, key=lambda i: i[0])
-    #         if random.random() > p:
-    #             rospy.loginfo("Changing WayPoints to visit unobserved places...")
-    #             new_visit_plan = list()
-    #             for i in scale_plan:
-    #                 for j in visit_plan:
-    #                     if i[1] == j[1]:
-    #                         new_visit_plan.append(j)
-    #                         break
-    #             visit_plan = new_visit_plan
-    #     return visit_plan
 
     def _topo_map_cb(self, topo_map):
         self.topo_map = topo_map
